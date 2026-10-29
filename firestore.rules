@@ -1,0 +1,12 @@
+rules_version = '2';
+
+// Ogni utente vede e modifica solo i propri documenti (users/{uid} e tutto ciò che contiene).
+// Le iscrizioni sono disattivate in Firebase Authentication, quindi esiste un solo utente.
+// Tutto il resto del database è chiuso.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

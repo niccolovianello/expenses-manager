@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <title>Spese</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/views.css">
+</head>
+<body>
+  <main class="login" id="login">
+    <form class="login-card" data-ref="form" novalidate>
+      <svg class="brand-mark" width="40" height="40" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7"/><path d="M8 18.5V14m4 4.5V9.5m4 9V12m4 6.5v-8"/></svg>
+      <h1 class="login-title">Spese</h1>
+      <p class="login-sub">Inserisci il codice per sbloccare i tuoi dati. Vengono decifrati solo in questo browser.</p>
+      <label class="field">
+        <span class="field-label">Codice</span>
+        <input class="input" type="password" name="code" data-ref="code" autocomplete="current-password" autofocus required>
+      </label>
+      <p class="field-error" data-ref="error" role="alert" hidden></p>
+      <button type="submit" class="btn btn-primary login-submit" data-ref="submit"><span data-ref="submitLabel">Sblocca</span></button>
+    </form>
+  </main>
+
+  <a class="skip-link" href="#main">Vai al contenuto</a>
+  <div class="app" id="app" hidden>
+    <aside class="rail">
+      <a class="brand" href="#/panoramica">
+        <svg class="brand-mark" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7"/><path d="M8 18.5V14m4 4.5V9.5m4 9V12m4 6.5v-8"/></svg>
+        <span>Spese</span>
+      </a>
+      <nav class="nav" id="nav" aria-label="Sezioni"></nav>
+      <div class="rail-foot" id="source-info"></div>
+      <div class="rail-actions" id="rail-actions"></div>
+    </aside>
+
+    <main class="main" id="main">
+      <div class="period-bar" id="period-bar" hidden></div>
+      <div id="app-status" class="app-status"></div>
+      <div class="view" id="view-overview" hidden></div>
+      <div class="view" id="view-transactions" hidden></div>
+      <div class="view" id="view-rules" hidden></div>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.js" integrity="sha384-4W8gMhOYqk0FPg9sAMkb3g/P2fXtzbUyDUUgMlA1EEig8z/U/13EYUjErc1H382b" crossorigin="anonymous"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

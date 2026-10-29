@@ -1,0 +1,8 @@
+node_modules/
+# Dati personali: l'export resta solo in locale, su Firebase va solo cifrato.
+data/
+.impeccable/review/
+.impeccable/build/
+.claude/
+.DS_Store
+.impeccable/hook.cache.json
