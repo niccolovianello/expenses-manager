@@ -6,8 +6,8 @@ const DATASET = 'dataset';
 const CATEGORIZATION = 'categorization';
 const ENTRIES = 'entries';
 
-// Accesso ai dati dell'app sopra un archivio cifrato con read(name) / write(name, value).
-// Tre contenitori: l'ultimo export importato, i movimenti inseriti a mano, regole e correzioni.
+// Access to the app's data on top of an encrypted store with read(name) / write(name, value).
+// Three containers: the last imported export, manually entered transactions, rules and overrides.
 export function createRepository(storage) {
   let categorization = null;
   let entries = null;
@@ -23,7 +23,7 @@ export function createRepository(storage) {
     return entries;
   }
 
-  // Una scrittura alla volta: ogni modifica parte dallo stato salvato dalla precedente.
+  // One write at a time: each change starts from the state saved by the previous one.
   function serial(task) {
     const run = queue.then(task);
     queue = run.catch(() => {});
@@ -62,7 +62,7 @@ export function createRepository(storage) {
     categorization: loadCategorization,
     entries: loadEntries,
 
-    // I movimenti inseriti a mano che ora compaiono anche nell'export vengono tolti, per non contarli due volte.
+    // Manual transactions that now also appear in the export are removed, so they are not counted twice.
     async importFile(file) {
       const dataset = await importExport(file);
       await storage.write(DATASET, dataset);

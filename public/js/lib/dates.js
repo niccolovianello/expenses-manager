@@ -1,4 +1,4 @@
-// Date come stringhe ISO "YYYY-MM-DD", calcolate in UTC per evitare scarti di fuso orario.
+// Dates as ISO "YYYY-MM-DD" strings, computed in UTC to avoid time-zone shifts.
 const DAY_MS = 86_400_000;
 
 export const parseISO = (iso) => {

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// Calcola la password da impostare per l'utente in Firebase Authentication.
-// Il codice segreto non viene mai mostrato, salvato o inviato: resta in questo processo.
-// Uso: npm run derive-password -- tua@email.it
+// Computes the password to set for the user in Firebase Authentication.
+// The secret code is never shown, stored or sent: it stays in this process.
+// Usage: npm run derive-password -- your@email.com
 import { createInterface } from 'node:readline';
 import { deriveAuthPassword } from '../public/js/vault/crypto.js';
 
 const email = process.argv[2];
 if (!email || !email.includes('@')) {
-  console.error('Uso: npm run derive-password -- tua@email.it');
+  console.error('Usage: npm run derive-password -- your@email.com');
   process.exit(1);
 }
 
@@ -25,16 +25,16 @@ function askHidden(question) {
   });
 }
 
-const code = await askHidden('Codice segreto: ');
-const repeat = await askHidden('Ripeti il codice: ');
+const code = await askHidden('Secret code: ');
+const repeat = await askHidden('Repeat the code: ');
 if (code !== repeat) {
-  console.error('I due codici non coincidono.');
+  console.error('The two codes do not match.');
   process.exit(1);
 }
 if (code.length < 12) {
-  console.error('Usa almeno 12 caratteri: è l’unica protezione dei dati cifrati.');
+  console.error('Use at least 12 characters: it is the only protection of the encrypted data.');
   process.exit(1);
 }
 
-console.log('\nPassword da impostare in Firebase Authentication per', email);
+console.log('\nPassword to set in Firebase Authentication for', email);
 console.log(await deriveAuthPassword(code, email));

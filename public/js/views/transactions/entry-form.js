@@ -8,8 +8,8 @@ import { selectAccounts, selectCategories } from '../../state/selectors.js';
 const FIELDS = ['date', 'amount', 'account', 'toAccount', 'category', 'tag', 'comment'];
 const formatAmountInput = (amount) => (amount ? amount.toFixed(2).replace('.', ',') : '');
 
-// Modulo per inserire o modificare un movimento a mano. Resta aperto dopo il salvataggio
-// di un nuovo movimento, con tipo, data, conto e categoria già pronti per il successivo.
+// Form to enter or edit a transaction by hand. It stays open after saving
+// a new transaction, with kind, date, account and category ready for the next one.
 export function mountEntryForm(element, store, actions) {
   render(element, html`
     <header class="panel-head">
@@ -67,7 +67,7 @@ export function mountEntryForm(element, store, actions) {
     render(refs.categories, categories.map((name) => html`<option value="${name}"></option>`));
   }
 
-  // L'errore compare sotto il campo da correggere, che viene segnato e messo a fuoco.
+  // The error appears under the field to fix, which is marked and focused.
   function showError(message, field = null) {
     for (const input of refs.form.querySelectorAll('[aria-invalid]')) {
       input.removeAttribute('aria-invalid');
@@ -97,7 +97,7 @@ export function mountEntryForm(element, store, actions) {
     pendingFocus = true;
   }
 
-  // Il modulo si apre anche da altre sezioni: lo si mette a fuoco quando la vista è visibile.
+  // The form also opens from other sections: it is focused once the view is visible.
   let pendingFocus = false;
   function focusWhenVisible(state) {
     if (!pendingFocus || state.route !== 'transactions') return;
@@ -146,7 +146,7 @@ export function mountEntryForm(element, store, actions) {
     if (!saved) return;
 
     if (editingId) return close();
-    // Pronto per il prossimo: si azzerano solo importo e dettagli.
+    // Ready for the next one: only amount and details are cleared.
     for (const name of ['amount', 'tag', 'comment']) fields[name].value = '';
     fields.amount.focus();
   });

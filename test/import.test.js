@@ -8,16 +8,16 @@ const SAMPLE = new URL('../data/movimenti.xlsx', import.meta.url);
 
 const header = ['Data e ora', 'Categoria', 'Conto', 'Importo in valuta predefinita', 'Valuta predefinita', 'Importo in valuta del conto', 'Valuta conto', 'Importo in valuta della transazione', 'Valuta transazione', 'Tag', 'Commento'];
 
-test('le date seriali di Excel diventano date ISO', () => {
+test('Excel serial dates become ISO dates', () => {
   assert.deepEqual(excelSerialToDateTime(46324), { date: '2026-10-29', time: null });
   assert.deepEqual(excelSerialToDateTime(46324.5), { date: '2026-10-29', time: '12:00' });
 });
 
-test('le entità XML vengono decodificate', () => {
+test('XML entities are decoded', () => {
   assert.equal(decodeXml('L&apos;ondra &amp; &#233;'), "L'ondra & é");
 });
 
-test('i fogli noti diventano movimenti con id stabili e unici', async () => {
+test('known sheets become transactions with stable, unique ids', async () => {
   const row = [46324, 'Svago', 'Carta', 42, 'EUR', 42, 'EUR', '', '', '', 'Cena'];
   const workbook = {
     sheets: [
@@ -36,12 +36,12 @@ test('i fogli noti diventano movimenti con id stabili e unici', async () => {
   assert.equal(transfer.sourceCategory, null);
 });
 
-test('una colonna obbligatoria mancante produce un errore chiaro', async () => {
+test('a missing required column produces a clear error', async () => {
   const workbook = { sheets: [{ name: 'Spese', rows: [['Data e ora', 'Categoria', 'Tag'], [46324, 'Svago', null]] }] };
   await assert.rejects(() => extractTransactions(workbook), /colonna "Conto"/);
 });
 
-test('il file xlsx reale viene letto nel formato atteso', { skip: !existsSync(SAMPLE) && 'export locale assente' }, async () => {
+test('the real xlsx file is read in the expected format', { skip: !existsSync(SAMPLE) && 'local export missing' }, async () => {
   const { transactions } = await extractTransactions(await readWorkbook(new Uint8Array(readFileSync(SAMPLE))));
   assert.ok(transactions.length > 100);
   assert.deepEqual(new Set(transactions.map((tx) => tx.kind)), new Set(['expense', 'income', 'transfer']));

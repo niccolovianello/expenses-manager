@@ -168,7 +168,7 @@ export function mountTransactions(element, store, actions) {
     }
 
     const categories = selectCategories(state);
-    // Ordinati per data, sul telefono i movimenti sono raggruppati per giorno (la data non si ripete in ogni riga).
+    // When sorted by date, transactions on the phone are grouped by day (the date is not repeated on every row).
     const grouped = filters.sort.key === 'date';
     const body = shown.map((tx, index) => html`${grouped && tx.date !== shown[index - 1]?.date
       ? html`<tr class="day-row"><th colspan="6" scope="colgroup">${formatDateLong(tx.date)}</th></tr>` : ''}${transactionRow(tx, state, categories, tx.id === openId)}`);

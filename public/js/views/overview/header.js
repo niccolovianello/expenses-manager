@@ -26,7 +26,7 @@ export function mountOverviewHeader(element, store, actions) {
     if (event.target.closest('[data-action="clear-focus"]')) actions.focusCategory(null);
   });
 
-  // Ciò che restringe la vista oltre al periodo resta visibile in cima, con un tocco per toglierlo.
+  // Whatever narrows the view beyond the period stays visible at the top, removable with one tap.
   watch(store, ['route', 'status', 'zoomFrom', 'focusCategory'], (state) => {
     if (!isOverviewVisible(state)) return;
     const { zoomFrom, focusCategory } = state;

@@ -1,4 +1,4 @@
-// Chiavi di stato da cui dipendono i pannelli della panoramica.
+// State keys the overview panels depend on.
 export const OVERVIEW_KEYS = ['status', 'route', 'transactions', 'config', 'period', 'granularity', 'account', 'flow', 'focusCategory', 'theme'];
 
 export const isOverviewVisible = (state) => state.status === 'ready' && state.route === 'overview';

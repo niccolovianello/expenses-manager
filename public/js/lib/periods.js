@@ -46,8 +46,8 @@ export function presetRange(id, today, extent) {
   return preset.range(today, extent);
 }
 
-// Un periodo allineato ai mesi si sposta di mesi interi (un anno se parte da gennaio),
-// un periodo libero si sposta della sua durata in giorni.
+// A month-aligned period shifts by whole months (a year if it starts in January);
+// a free period shifts by its length in days.
 function alignedMonths(range) {
   if (range.from !== startOfMonth(range.from)) return 0;
   const span = monthsBetween(range.from, range.to) + 1;
@@ -99,7 +99,7 @@ function autoGranularity(days) {
 const approximateBuckets = (days, granularity) =>
   days / { day: 1, week: 7, month: 30.4, quarter: 91.3, year: 365 }[granularity];
 
-// La scelta dell'utente viene resa più grossolana solo se produrrebbe troppe barre.
+// The user's choice is coarsened only if it would produce too many bars.
 export function resolveGranularity(choice, range) {
   const days = diffDays(range.from, range.to) + 1;
   let granularity = choice === 'auto' ? autoGranularity(days) : choice;

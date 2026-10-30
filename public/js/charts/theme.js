@@ -1,4 +1,4 @@
-// I colori dei grafici vengono dai token CSS: un solo posto per tema chiaro e scuro.
+// Chart colors come from the CSS tokens: a single source for light and dark themes.
 export const cssVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
 export function applyChartDefaults(Chart) {

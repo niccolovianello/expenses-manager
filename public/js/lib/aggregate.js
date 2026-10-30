@@ -26,7 +26,7 @@ export function groupTotals(transactions, keyOf) {
   return [...groups.values()].sort((a, b) => b.total - a.total);
 }
 
-// Somma per intervallo di tempo: Map(serie → array allineato ai bucket).
+// Sum per time interval: Map(series → array aligned to the buckets).
 export function timeSeries(transactions, buckets, granularity, keyOf) {
   const position = new Map(buckets.map((bucket, index) => [bucket.key, index]));
   const series = new Map();

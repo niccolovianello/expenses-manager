@@ -1,7 +1,7 @@
 import { groupTotals } from '../lib/aggregate.js';
 
-// Le categorie più pesanti di sempre ricevono un colore fisso; le altre confluiscono in "Altre".
-// Il colore segue la categoria, non la sua posizione nel periodo selezionato.
+// The all-time heaviest categories get a fixed color; the rest are grouped into "Altre".
+// The color follows the category, not its position in the selected period.
 export const SLOT_COUNT = 7;
 export const OTHER_KEY = '__other__';
 export const OTHER_LABEL = 'Altre categorie';

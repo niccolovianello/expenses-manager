@@ -16,7 +16,7 @@ const AUTH_ERRORS = {
 
 export const isConfigured = (config) => Boolean(config.firebase?.apiKey && config.firebase?.projectId && config.accountEmail);
 
-// Il profilo contiene solo il sale (non segreto) per ricavare la chiave dei dati.
+// The profile holds only the (non-secret) salt used to derive the data key.
 async function loadOrCreateProfile(db, uid) {
   const ref = doc(db, 'users', uid);
   const snapshot = await getDoc(ref);
@@ -26,7 +26,7 @@ async function loadOrCreateProfile(db, uid) {
   return profile;
 }
 
-// Verifica il codice con Firebase e ricava la chiave: il codice non viene conservato.
+// Verifies the code with Firebase and derives the key: the code is not kept.
 export async function unlock(code, config) {
   const { auth, db } = getFirebase(config.firebase);
   let credential;

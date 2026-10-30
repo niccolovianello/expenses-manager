@@ -16,7 +16,7 @@ function parseAttributes(source) {
   return attributes;
 }
 
-// Testo di un nodo <si> o <is>: concatena i run <t>, escluse le annotazioni fonetiche.
+// Text of an <si> or <is> node: concatenates the <t> runs, excluding phonetic annotations.
 function textContent(xml) {
   const withoutPhonetic = xml.replace(/<rPh\b[\s\S]*?<\/rPh>/g, '');
   return [...withoutPhonetic.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map((m) => decodeXml(m[1])).join('');

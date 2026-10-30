@@ -7,15 +7,15 @@ import { DEFAULT_TX_FILTERS } from './initial.js';
 import { baselineCategory, selectExtent } from './selectors.js';
 import { showToast } from '../components/toast.js';
 
-// `api` è il repository dei dati (cifrati su Firebase); `lock` chiude la sessione;
-// `markHistory` chiede che il prossimo cambio di stato crei una voce di cronologia.
+// `api` is the data repository (encrypted on Firebase); `lock` ends the session;
+// `markHistory` asks for the next state change to create a history entry.
 export function createActions(store, api, { lock, markHistory = () => {} } = {}) {
-  // Ogni cambio di periodo fatto a mano dimentica da dove era partito lo zoom.
+  // Every manual period change forgets where the zoom started from.
   const setPeriod = (period) => store.set({ period, zoomFrom: null });
 
   const newestFirst = (a, b) => (b.date + (b.time ?? '')).localeCompare(a.date + (a.time ?? ''));
 
-  // I movimenti mostrati sono quelli importati più quelli inseriti a mano.
+  // The transactions shown are the imported ones plus the manual ones.
   function setData(patch) {
     const { imported, entries } = { ...store.get(), ...patch };
     store.set({ ...patch, transactions: [...entries, ...imported].sort(newestFirst) });
@@ -27,7 +27,7 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     store.set({ status: 'ready' });
   }
 
-  // Aggiorna subito l'interfaccia, poi salva; se il salvataggio fallisce ripristina.
+  // Updates the UI immediately, then saves; rolls back if saving fails.
   async function persistConfig(optimisticConfig, request, successMessage) {
     const previous = store.get().config;
     if (optimisticConfig) store.set({ config: optimisticConfig });
@@ -93,7 +93,7 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       setPeriod({ preset: 'custom', ...shiftRange(period, direction) });
     },
 
-    // Lo zoom da un grafico ricorda il periodo di partenza, per poterci tornare con un tocco.
+    // Zooming from a chart remembers the starting period, so one tap can return to it.
     zoomTo(range) {
       const { zoomFrom, period } = store.get();
       markHistory();
@@ -109,7 +109,7 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       else actions.setPreset(zoomFrom.preset);
     },
 
-    // Stato letto dall'hash (indirizzo aperto o Indietro): periodo e categoria esplorata.
+    // State read from the hash (opened address or Back): period and explored category.
     applyLocation(params, route) {
       const { period, focusCategory } = store.get();
       const preset = params.get('p');

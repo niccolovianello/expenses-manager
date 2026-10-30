@@ -1,4 +1,4 @@
-/* Barra del periodo */
+/* Period bar */
 .period-bar {
   position: sticky;
   top: 0;
@@ -32,12 +32,12 @@
 
 .period-options select { max-width: 13rem; }
 
-/* Riga compatta del telefono: su schermi larghi i controlli restano tutti visibili. */
+/* Compact phone row: on wide screens all controls stay visible. */
 .period-summary { display: none; }
 .period-controls { display: contents; }
 
 @media (max-width: 860px) {
-  /* Sul telefono resta in vista una sola riga, ‹ periodo ›; i controlli si aprono sotto. */
+  /* On the phone a single row stays in view, ‹ period ›; the controls open below it. */
   .period-bar {
     top: var(--topbar-h);
     flex-direction: column;
@@ -115,7 +115,7 @@
 
   .period-presets .segmented-btn { min-width: 0; padding: 0 var(--space-2); }
 
-  /* Le frecce stanno già nella riga del periodo. */
+  /* The arrows are already in the period row. */
   .period-range .icon-btn { display: none; }
   .period-range { width: 100%; gap: var(--space-2); }
   .date-field { flex: 1; min-width: 0; }
@@ -138,7 +138,7 @@
   .period-options select { min-width: 0; max-width: none; }
 }
 
-/* Filtri attivi oltre al periodo: zoom da un grafico, categoria esplorata. */
+/* Active filters beyond the period: zoom from a chart, explored category. */
 .filter-chips {
   display: flex;
   flex-wrap: wrap;
@@ -146,7 +146,7 @@
   flex-basis: 100%;
 }
 
-/* Riepilogo */
+/* Summary */
 .summary { padding: var(--space-5) var(--space-6); }
 
 .figures {
@@ -197,17 +197,17 @@
 @media (max-width: 480px) {
   .summary { padding: var(--space-4); }
   .figure { padding: 0 var(--space-3); }
-  /* Cifre grandi (1.234.567,89 €) restano su una riga anche a 320px. */
+  /* Large figures (1.234.567,89 €) stay on one line even at 320px. */
   .figure-value { font-size: clamp(1rem, 5.4vw, var(--fs-xl)); white-space: nowrap; }
   .figure-detail .delta-ref { display: none; }
 }
 
-/* Telefono: prima il colpo d'occhio (riepilogo e categorie), poi i grafici. */
+/* Phone: the at-a-glance view first (summary and categories), then the charts. */
 @media (max-width: 860px) {
   .grid-main > [data-ref="categories"] { order: -1; }
 }
 
-/* Classifica categorie */
+/* Category ranking */
 .rank-list {
   display: flex;
   flex-direction: column;
@@ -264,7 +264,7 @@
 .rank-delta { justify-self: end; }
 .rank-delta .delta { font-size: var(--fs-xs); }
 
-/* Movimenti */
+/* Transactions */
 .filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -322,7 +322,7 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 .col-category { min-width: 200px; }
 .col-actions { width: 40px; text-align: right; }
 
-/* L'azione "crea regola" compare sulla riga attiva; sui dispositivi touch resta sempre visibile. */
+/* The "crea regola" action appears on the active row; on touch devices it is always visible. */
 @media (hover: hover) {
   .tx-table .col-actions .icon-btn { opacity: 0; }
   .tx-table tr:hover .col-actions .icon-btn,
@@ -350,7 +350,7 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 .amount-income { color: var(--good); }
 .amount-transfer { color: var(--text-3); }
 
-/* Su telefono ogni movimento diventa una riga compatta: descrizione e importo in alto. */
+/* On the phone each transaction becomes a compact row: description and amount on top. */
 @media (max-width: 640px) {
   .filter-bar { padding: var(--space-4); }
   .tx-table thead { display: none; }
@@ -403,7 +403,7 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
   }
   .tx-table .col-desc .cell-sub { display: none; }
 
-  /* Riga chiusa: la categoria si legge; aperta: si cambia, e compaiono le azioni. */
+  /* Closed row: the category is read-only; open: it can be changed, and the actions appear. */
   .tx-table .cat-name { display: block; color: var(--text-2); font-size: var(--fs-s); }
   .tx-table tr:not(.is-open) .cat-cell select,
   .tx-table tr:not(.is-open) .col-actions .icon-btn:not(.row-toggle) { display: none; }
@@ -433,7 +433,7 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
     font-weight: 600;
   }
 
-  /* Raggruppati per giorno: due righe, descrizione e importo, poi categoria e conto. */
+  /* Grouped by day: two lines, description and amount, then category and account. */
   .tx-table.is-grouped tr:not(.day-row, .is-open) {
     grid-template-areas:
       "desc desc amount"
@@ -452,7 +452,7 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
   .tx-table.is-grouped .col-date { display: none; }
   .tx-table.is-grouped tr.is-open .col-account { text-align: left; }
 
-  /* Il bottone resta piccolo alla vista ma si tocca su 44px. */
+  /* The button looks small but has a 44px touch area. */
   .tx-table .row-toggle { position: relative; width: 32px; height: 28px; }
   .tx-table .row-toggle::after { content: ""; position: absolute; inset: -8px -6px; }
 }
@@ -469,7 +469,7 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 
 .table-foot:empty { display: none; }
 
-/* Regole */
+/* Rules */
 .rule-fields {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -577,13 +577,13 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 @media (max-width: 640px) {
   .filter-bar .segmented { display: flex; width: 100%; }
   .filter-bar .segmented-btn { flex: 1; padding: 0 var(--space-2); }
-  /* Categoria e "solo ricategorizzati" stanno sulla stessa riga; il menu dice già cosa filtra. */
+  /* Category and "solo ricategorizzati" share one row; the menu already says what it filters. */
   .filter-bar .field-inline { flex: 1; min-width: 0; }
   .filter-bar .field-inline .field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .filter-bar .field-inline select { flex: 1; min-width: 0; }
 }
 
-/* Sul telefono "Nuovo movimento" è nella barra in basso. */
+/* On the phone "Nuovo movimento" is in the bottom bar. */
 @media (max-width: 860px) {
   #view-transactions .view-head [data-action="new-entry"] { display: none; }
 }
@@ -600,7 +600,7 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
   .preview-list li { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
 
-/* Inserimento manuale dei movimenti */
+/* Manual transaction entry */
 .entry-form {
   display: flex;
   flex-direction: column;
@@ -657,13 +657,13 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 
 .entry-panel .panel-head { flex-wrap: nowrap; }
 
-/* Le barre fisse in alto non devono coprire un modulo portato in vista. */
+/* The sticky top bars must not cover a form scrolled into view. */
 @media (max-width: 860px) {
   .panel { scroll-margin-top: calc(var(--topbar-h) + var(--space-3)); }
   .entry-panel { scroll-margin-top: calc(var(--topbar-h) + 64px); }
 }
 
-/* Spese più alte: larghezze fisse, così una descrizione lunga si tronca invece di allargare la pagina. */
+/* Top expenses: fixed widths, so a long description is truncated instead of widening the page. */
 .top-table { table-layout: fixed; }
 .top-table th:first-child { width: 4.5rem; }
 .top-table th:last-child { width: 7.5rem; }

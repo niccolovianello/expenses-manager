@@ -4,8 +4,8 @@ export const ROUTES = {
   rules: { hash: '#/categorie', title: 'Categorie e regole', short: 'Regole' },
 };
 
-// L'hash porta anche periodo e categoria esplorata (#/panoramica?p=12m&cat=Casa),
-// così Indietro annulla uno zoom e un indirizzo salvato riapre la stessa vista.
+// The hash also carries the period and explored category (#/panoramica?p=12m&cat=Casa),
+// so Back undoes a zoom and a saved address reopens the same view.
 function parseHash(hash) {
   const [path, query = ''] = hash.split('?');
   const route = Object.keys(ROUTES).find((key) => ROUTES[key].hash === path) ?? 'overview';
@@ -31,7 +31,7 @@ export function navigate(route) {
   if (parseHash(location.hash).route !== route) location.hash = ROUTES[route].hash;
 }
 
-// `onParams` riceve i parametri dell'hash quando l'utente arriva da un indirizzo o torna indietro.
+// `onParams` receives the hash parameters when the user arrives from an address or goes back.
 export function startRouter(store, onParams = () => {}) {
   const sync = () => {
     const { route, params } = parseHash(location.hash);
@@ -43,8 +43,8 @@ export function startRouter(store, onParams = () => {}) {
   sync();
 }
 
-// Tiene l'hash allineato allo stato. Di norma sostituisce la voce di cronologia;
-// dopo `markHistory()` ne aggiunge una nuova, perché Indietro torni allo stato precedente.
+// Keeps the hash in sync with the state. Normally it replaces the history entry;
+// after `markHistory()` it pushes a new one, so Back returns to the previous state.
 export function syncHash(state, { push = false } = {}) {
   const next = hashFor(state.route, state);
   if (location.hash === next) return;

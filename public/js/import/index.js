@@ -1,7 +1,7 @@
 import { readWorkbook } from './workbook.js';
 import { extractTransactions } from './transactions.js';
 
-// Dal file scelto dall'utente al dataset: tutto avviene nel browser, nulla esce in chiaro.
+// From the user's chosen file to the dataset: everything happens in the browser, nothing leaves unencrypted.
 export async function importExport(file) {
   if (!/\.xlsx$/i.test(file.name)) throw new Error('Scegli un file .xlsx esportato dall’app di budgeting');
   let extracted;

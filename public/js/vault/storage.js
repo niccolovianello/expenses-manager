@@ -1,7 +1,7 @@
 import { doc, getDoc, writeBatch, serverTimestamp } from './firebase.js';
 import { openJson, sealJson } from './crypto.js';
 
-// Caratteri base64 per documento: resta sotto il limite di 1 MiB di Firestore.
+// Base64 characters per document: stays under Firestore's 1 MiB limit.
 const CHUNK_SIZE = 700_000;
 
 const partId = (name, index) => `${name}-part-${index}`;
@@ -12,8 +12,8 @@ function split(text, size) {
   return parts.length ? parts : [''];
 }
 
-// Contenitori cifrati su Firestore: users/{uid}/blobs/{name} tiene iv e numero di parti,
-// users/{uid}/blobs/{name}-part-{n} il testo cifrato. Su Firebase non arriva mai nulla in chiaro.
+// Encrypted containers on Firestore: users/{uid}/blobs/{name} holds the iv and number of parts,
+// users/{uid}/blobs/{name}-part-{n} the ciphertext. Nothing ever reaches Firebase in plain text.
 export function createVaultStorage({ db, uid, key }) {
   const ref = (id) => doc(db, 'users', uid, 'blobs', id);
 

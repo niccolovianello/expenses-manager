@@ -1,4 +1,4 @@
-// Lettore ZIP minimale: quanto basta per estrarre le parti XML di un file xlsx, senza dipendenze.
+// Minimal ZIP reader: just enough to extract the XML parts of an xlsx file, with no dependencies.
 const END_OF_CENTRAL_DIR = 0x06054b50;
 const CENTRAL_DIR_ENTRY = 0x02014b50;
 const LOCAL_FILE_HEADER = 0x04034b50;

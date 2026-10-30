@@ -11,7 +11,7 @@ const EMPTY_DRAFT = { id: null, kind: 'expense', field: 'comment', operator: 'co
 const EXAMPLES = 5;
 const options = (entries) => Object.entries(entries).map(([value, label]) => html`<option value="${value}">${label}</option>`);
 
-// Simula la regola sui dati reali: quanti movimenti tocca e quali cambierebbero categoria.
+// Simulates the rule on real data: how many transactions it matches and which would change category.
 function simulate(state, draft) {
   const { rule } = normalizeRule(draft);
   if (!rule) return null;
@@ -145,8 +145,8 @@ export function mountRuleForm(element, store, actions) {
     }
   });
 
-  // Una bozza arriva da un'altra sezione: il modulo va mostrato e messo a fuoco solo
-  // quando la vista delle regole è davvero visibile, non mentre è ancora nascosta.
+  // A draft arrives from another section: the form is shown and focused only
+  // once the rules view is actually visible, not while it is still hidden.
   let pendingFocus = false;
   watch(store, ['status', 'route', 'config', 'transactions', 'ruleDraft'], (state) => {
     if (state.status !== 'ready') return;

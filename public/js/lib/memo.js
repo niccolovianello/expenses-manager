@@ -1,4 +1,4 @@
-// Ricalcola solo quando cambia (per identità) almeno uno degli argomenti.
+// Recomputes only when at least one argument changes (by identity).
 export function memo(compute) {
   let lastArgs = null;
   let lastResult;

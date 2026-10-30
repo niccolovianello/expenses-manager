@@ -1,6 +1,6 @@
-// Logica di categorizzazione: calcolo, anteprime e validazione delle regole.
-// Precedenza: correzione manuale > prima regola attiva che corrisponde > categoria dell'export.
-// I movimenti inseriti a mano tengono sempre la categoria scelta all'inserimento.
+// Categorization logic: computation, previews and rule validation.
+// Precedence: manual override > first matching active rule > export category.
+// Manually entered transactions always keep the category chosen when they were entered.
 
 export const UNCATEGORIZED = 'Da categorizzare';
 
@@ -65,7 +65,7 @@ export function ruleMatches(rule, tx) {
 
 export function categorize(tx, { rules = [], overrides = {} } = {}) {
   if (tx.kind === 'transfer') return { category: null, source: 'transfer', ruleId: null };
-  // Un movimento inserito a mano ha la categoria scelta da chi l'ha inserito: le regole non la cambiano.
+  // A manual transaction has the category chosen by whoever entered it: rules do not change it.
   if (tx.origin === 'manual') return { category: tx.sourceCategory || UNCATEGORIZED, source: 'entry', ruleId: null };
   if (overrides[tx.id]) return { category: overrides[tx.id], source: 'manual', ruleId: null };
   const rule = rules.find((candidate) => candidate.enabled !== false && ruleMatches(candidate, tx));

@@ -48,7 +48,7 @@ const colorMapsOf = memo((categorized) => ({
 }));
 export const selectColorMaps = (state) => colorMapsOf(selectCategorized(state));
 
-// Categoria che il movimento avrebbe senza la correzione manuale.
+// The category the transaction would have without the manual override.
 export const baselineCategory = (state, tx) => categorize(tx, { rules: state.config.rules, overrides: {} }).category;
 
 const overviewOf = memo((categorized, period, granularityChoice, account, flow, focus) => {

@@ -3,18 +3,18 @@ import { formatAxisEUR, formatEUR } from '../lib/format.js';
 
 const DATA_END_RADIUS = 4;
 
-// Sul touch il primo tocco mostra i valori della barra, il secondo sulla stessa barra la esplora:
-// un solo tocco non deve cambiare il periodo a chi voleva solo leggere.
+// On touch, the first tap shows the bar's values and a second tap on the same bar drills into it:
+// a single tap must not change the period for someone who only wanted to read.
 const touch = window.matchMedia('(hover: none)');
 export const exploreHint = () => (touch.matches ? 'Tocca di nuovo per esplorare il periodo' : 'Clic per esplorare il periodo');
 
-// Grafico a barre (impilate o affiancate) con tooltip e clic sul singolo intervallo.
+// Bar chart (stacked or grouped) with tooltips and click on a single interval.
 // model: { labels, titles, series: [{ label, data, colorVar }], footer?(index) }
 export function createBarChart(canvas, { stacked = false, onSelect } = {}) {
   let model = { labels: [], titles: [], series: [] };
   let armed = null;
 
-  // Solo l'estremità della pila (o della barra) è arrotondata; la base resta ancorata all'asse.
+  // Only the end of the stack (or bar) is rounded; the base stays anchored to the axis.
   const radius = ({ chart, datasetIndex, dataIndex }) => {
     if (stacked) {
       const datasets = chart.data.datasets;
@@ -94,7 +94,7 @@ export function createBarChart(canvas, { stacked = false, onSelect } = {}) {
         backgroundColor: color,
         hoverBackgroundColor: color,
         borderColor: surface,
-        // Uno stacco di 2px color superficie separa i segmenti impilati.
+        // A 2px surface-colored gap separates stacked segments.
         borderWidth: stacked ? { top: 2, bottom: 0, left: 0, right: 0 } : 0,
       };
     });

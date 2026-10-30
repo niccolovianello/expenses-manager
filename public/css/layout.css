@@ -4,7 +4,7 @@
   min-height: 100vh;
 }
 
-/* Barra laterale */
+/* Sidebar */
 .rail {
   position: sticky;
   top: 0;
@@ -71,7 +71,7 @@
   white-space: nowrap;
 }
 
-/* Area di lavoro */
+/* Work area */
 .main {
   display: flex;
   flex-direction: column;
@@ -138,7 +138,7 @@
   }
 }
 
-/* Le etichette brevi servono solo alla barra in basso del telefono. */
+/* Short labels are only used by the phone's bottom bar. */
 .nav-label-short,
 .nav-add { display: none; }
 
@@ -154,7 +154,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  /* In alto: marchio e azioni rare (importa, blocca). */
+  /* Top: brand and rare actions (import, lock). */
   .rail {
     position: sticky;
     z-index: 5;
@@ -170,7 +170,7 @@
   .rail-foot { display: none; }
   .brand { padding: 0; }
 
-  /* In basso, a portata di pollice: le tre sezioni e "Nuovo" al centro. */
+  /* Bottom, within thumb reach: the three sections with "Nuovo" in the middle. */
   .nav {
     position: fixed;
     inset: auto 0 0;
@@ -245,7 +245,7 @@
   .view-title { font-size: var(--fs-2xl); }
 }
 
-/* Azioni della barra laterale: importa un nuovo export, blocca. */
+/* Sidebar actions: import a new export, lock. */
 .rail-actions {
   display: flex;
   flex-direction: column;
@@ -265,13 +265,13 @@
     border-top: 0;
   }
 
-  /* "Nuovo movimento" vive nella barra in basso. */
+  /* "Nuovo movimento" lives in the bottom bar. */
   .rail-actions [data-action="add-entry"] { display: none; }
   .rail-actions .btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .rail-actions .btn { justify-content: center; width: var(--tap); min-height: var(--tap); padding: 0; }
 }
 
-/* Schermata del codice */
+/* Code screen */
 .login {
   display: grid;
   place-items: center;

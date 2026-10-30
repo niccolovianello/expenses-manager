@@ -4,7 +4,7 @@ export const emptyCategorization = () => ({ rules: [], overrides: {} });
 
 const newId = () => crypto.randomUUID().slice(0, 8);
 
-// Scarta regole o correzioni non valide (file salvati da versioni precedenti o modificati a mano).
+// Discards invalid rules or overrides (files saved by older versions or edited by hand).
 export function sanitizeCategorization(data) {
   const rules = Array.isArray(data?.rules)
     ? data.rules.flatMap((input) => {
@@ -32,7 +32,7 @@ function ruleIndex(state, id) {
   return index;
 }
 
-// Modifiche pure: ricevono una copia dello stato e la aggiornano.
+// Pure mutations: they receive a copy of the state and update it.
 export const mutations = {
   setOverride(state, id, category) {
     const normalized = normalizeCategory(category);

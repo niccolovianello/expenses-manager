@@ -1,5 +1,5 @@
-// Mappa i fogli dell'export dell'app di budgeting sui campi delle transazioni.
-// Per supportare un altro export basta aggiungere qui un nuovo schema.
+// Maps the budgeting app's export sheets onto transaction fields.
+// To support another export, add a new schema here.
 const MOVEMENT_COLUMNS = {
   date: 'Data e ora',
   category: 'Categoria',

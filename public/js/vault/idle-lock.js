@@ -1,6 +1,6 @@
 const ACTIVITY_EVENTS = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
 
-// Blocca l'app dopo un periodo senza interazioni: la chiave in memoria viene buttata con la pagina.
+// Locks the app after a period without interaction: the in-memory key is discarded with the page.
 export function startIdleLock(minutes, onLock) {
   if (!minutes) return () => {};
   let timer;

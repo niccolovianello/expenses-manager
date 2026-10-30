@@ -1,16 +1,16 @@
 import { collectRefs } from '../lib/html.js';
 
-// Due frame: il browser dipinge "Verifica in corso…" e chiude il pannello di AutoFill
-// prima che parta la derivazione delle chiavi.
+// Two frames: the browser paints "Verifica in corso…" and closes the AutoFill panel
+// before key derivation starts.
 const nextPaint = () => new Promise((resolve) => requestAnimationFrame(() => setTimeout(resolve, 0)));
 
-// Schermata del codice: l'unico punto d'ingresso. Il codice resta in questa funzione
-// il tempo di ricavare password e chiave, poi il campo viene svuotato.
+// Code screen: the only entry point. The code stays in this function just long enough
+// to derive the password and key, then the field is cleared.
 export function mountLogin(element, { configured, accountEmail, onSubmit }) {
   const refs = collectRefs(element);
 
-  // AutoFill di iOS salva e propone coppie utente + password: senza il campo utente
-  // la voce salvata resta orfana e il pannello può bloccarsi.
+  // iOS AutoFill saves and suggests username + password pairs: without the username field
+  // the saved entry is orphaned and the panel can hang.
   refs.username.value = accountEmail ?? '';
 
   const showError = (message) => {
@@ -19,8 +19,8 @@ export function mountLogin(element, { configured, accountEmail, onSubmit }) {
   };
 
   const setBusy = (busy) => {
-    // readOnly e non disabled: disabilitare il campo mentre AutoFill lo sta compilando
-    // lascia Safari su iOS in attesa di un campo che non risponde più.
+    // readOnly, not disabled: disabling the field while AutoFill is filling it
+    // leaves Safari on iOS waiting for a field that no longer responds.
     refs.code.readOnly = busy;
     refs.submit.disabled = busy;
     refs.submitLabel.textContent = busy ? 'Verifica in corso…' : 'Sblocca';

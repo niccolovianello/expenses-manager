@@ -1,6 +1,6 @@
 import { normalizeCategory } from '../../domain/categorize.js';
 
-// Sostituisce il menu della categoria con un campo di testo per crearne una nuova.
+// Replaces the category menu with a text field for creating a new one.
 export function startNewCategory(select, { onCommit, onCancel }) {
   const input = document.createElement('input');
   input.type = 'text';

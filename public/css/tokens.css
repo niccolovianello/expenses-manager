@@ -52,7 +52,7 @@
   --tooltip-bg: #15181d;
   --tooltip-text: #f4f5f7;
 
-  /* Palette categorica validata (ordine fisso, controllo daltonismo). */
+  /* Validated categorical palette (fixed order, color-blindness checked). */
   --series-1: #2a78d6;
   --series-2: #eb6834;
   --series-3: #1baf7a;
@@ -64,7 +64,7 @@
   --flow-in: #2f8f83;
   --flow-out: #5b6474;
 
-  /* Telefono: barra in alto con marchio e azioni, barra delle sezioni in basso. */
+  /* Phone: top bar with brand and actions, section bar at the bottom. */
   --topbar-h: 56px;
   --tabbar-h: 60px;
   --tap: 44px;

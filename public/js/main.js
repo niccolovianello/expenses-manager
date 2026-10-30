@@ -17,8 +17,8 @@ import { mountRules } from './views/rules/index.js';
 
 const byId = (id) => document.getElementById(id);
 
-// Bloccare significa chiudere la sessione Firebase e ricaricare la pagina:
-// chiave e dati decifrati esistono solo in memoria e vanno persi con essa.
+// Locking means signing out of Firebase and reloading the page:
+// the key and decrypted data exist only in memory and are lost with it.
 function startApp(session) {
   const lock = async () => {
     await session.lock().catch(() => {});
@@ -26,7 +26,7 @@ function startApp(session) {
   };
   startIdleLock(appConfig.idleLockMinutes, lock);
 
-  // Sul telefono si apre sul mese in corso: un colpo d'occhio, non l'analisi dell'anno.
+  // On the phone it opens on the current month: a quick glance, not a year-long analysis.
   const phone = window.matchMedia('(max-width: 860px)').matches;
   const store = createStore(createInitialState(phone ? { preset: 'month' } : {}));
   let pushNext = false;

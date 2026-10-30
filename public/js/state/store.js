@@ -17,7 +17,7 @@ export function createStore(initialState) {
   };
 }
 
-// Esegue subito `fn` e poi a ogni modifica di una delle chiavi indicate.
+// Runs `fn` immediately and then whenever one of the given keys changes.
 export function watch(store, keys, fn) {
   fn(store.get());
   return store.subscribe((state, changed) => {

@@ -1,7 +1,7 @@
 import { normalizeCategory } from './categorize.js';
 
-// Movimenti inseriti a mano dall'interfaccia: stessa forma dei movimenti importati,
-// con origin 'manual' e un id proprio che non collide con quelli dell'export.
+// Transactions entered by hand in the UI: same shape as imported transactions,
+// with origin 'manual' and an id of their own that does not collide with the export's.
 export const ENTRY_KINDS = { expense: 'Uscita', income: 'Entrata', transfer: 'Giroconto' };
 
 const MAX_AMOUNT = 1_000_000_000;
@@ -11,7 +11,7 @@ const clean = (value, maxLength) => {
   return text ? text.slice(0, maxLength) : null;
 };
 
-// Accetta "12,50", "1.234,56", "12.5" e numeri.
+// Accepts "12,50", "1.234,56", "12.5" and numbers.
 export function parseAmount(value) {
   if (typeof value === 'number') return value;
   let text = String(value ?? '').replace(/[\s€]/g, '');
@@ -26,7 +26,7 @@ function isValidDate(iso) {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
-// In caso di errore `field` dice quale campo correggere.
+// On error, `field` says which field to fix.
 export function normalizeEntry(input = {}) {
   const { kind } = input;
   if (!(kind in ENTRY_KINDS)) return { error: 'Scegli il tipo di movimento', field: 'kind' };
@@ -63,7 +63,7 @@ export function normalizeEntry(input = {}) {
   };
 }
 
-// Valori da mostrare nel modulo per modificare un movimento esistente.
+// Values to show in the form when editing an existing transaction.
 export const entryInput = (tx) => ({
   kind: tx.kind,
   date: tx.date,
@@ -75,5 +75,5 @@ export const entryInput = (tx) => ({
   comment: tx.comment,
 });
 
-// Chiave per riconoscere un movimento inserito a mano che poi compare anche nell'export.
+// Key to recognize a manual transaction that later also appears in the export.
 export const duplicateKey = (tx) => [tx.kind, tx.date, tx.amount.toFixed(2), tx.account, tx.toAccount ?? ''].join('|');

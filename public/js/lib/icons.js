@@ -1,6 +1,6 @@
 import { raw } from './html.js';
 
-// Tracciati da Lucide (ISC), stesso stile per tutta l'interfaccia.
+// Paths from Lucide (ISC), one style across the whole interface.
 const PATHS = {
   dashboard: '<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>',
   list: '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',

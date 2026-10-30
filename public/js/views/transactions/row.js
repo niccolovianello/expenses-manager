@@ -29,7 +29,7 @@ function categoryCell(tx, state, categories) {
     </div>${note}`;
 }
 
-// Sul telefono la riga si legge e basta; toccandola si apre con categoria e azioni modificabili.
+// On the phone the row is read-only; tapping it opens it with an editable category and actions.
 const isEditable = (tx) => tx.origin === 'manual' || tx.kind !== 'transfer';
 
 export function transactionRow(tx, state, categories, open = false) {

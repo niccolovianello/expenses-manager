@@ -1,6 +1,6 @@
-// Configurazione pubblica: questi valori sono visibili a chiunque apra la pagina e va bene così.
-// I dati sono protetti dalle regole di Firestore (solo il tuo account) e dalla cifratura col tuo codice.
-// Compila i campi seguendo DEPLOY.md.
+// Public configuration: these values are visible to anyone who opens the page, and that is fine.
+// The data is protected by the Firestore rules (your account only) and by encryption with your code.
+// Fill in the fields following DEPLOY.md.
 export const appConfig = {
   firebase: {
     apiKey: 'AIzaSyBjMZmRdJuPZwrKQQyAKXpu2kOQXm3OdtA',
@@ -8,8 +8,8 @@ export const appConfig = {
     projectId: 'money-manager-79b34',
     appId: '1:891008287368:web:5813ac5d18612064f0d53d',
   },
-  // Email dell'unico utente creato in Firebase Authentication (solo identificativo, non una casella reale).
+  // Email of the single user created in Firebase Authentication (an identifier only, not a real mailbox).
   accountEmail: 'owner@spese.niccolovianello.invalid',
-  // Minuti senza interazioni prima del blocco automatico (0 per disattivarlo).
+  // Minutes without interaction before the automatic lock (0 to disable it).
   idleLockMinutes: 15,
 };

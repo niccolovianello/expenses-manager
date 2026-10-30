@@ -8,14 +8,14 @@ export function legend(series) {
   return series.map((item) => html`<li class="legend-item">${swatch(item.colorVar)}<span>${item.label}</span></li>`);
 }
 
-// Variazione rispetto al periodo precedente: la freccia dice la direzione, il colore resta neutro
-// (rosso e verde sono riservati a uscite ed entrate). `absolute` mostra una differenza in euro.
+// Change versus the previous period: the arrow gives the direction, the color stays neutral
+// (red and green are reserved for expenses and income). `absolute` shows a difference in euros.
 export function delta(change, { reference = 'periodo prec.', absolute = false } = {}) {
   if (change === null || !Number.isFinite(change)) {
     return html`<span class="delta delta-none">Nessun confronto</span>`;
   }
   const flat = Math.abs(change) < (absolute ? 0.5 : 0.005);
-  // Oltre +1000% la percentuale non dice più nulla (base quasi vuota): meglio il multiplo, "×13".
+  // Beyond +1000% the percentage is meaningless (near-empty base): show the multiple instead, "×13".
   const value = flat ? 'invariato'
     : absolute ? formatSignedEUR(change)
       : change >= 10 ? `×${formatCount(Math.round(change + 1))}` : formatSignedPercent(change);
@@ -26,7 +26,7 @@ export function delta(change, { reference = 'periodo prec.', absolute = false } 
   </span>`;
 }
 
-// Tabella alternativa al grafico: una riga per intervallo, una colonna per serie.
+// Table alternative to the chart: one row per interval, one column per series.
 export function seriesTable({ caption, titles, series, showTotal = true }) {
   const rowTotal = (index) => series.reduce((sum, item) => sum + item.data[index], 0);
   return html`<div class="table-scroll"><table class="data-table">

@@ -1,4 +1,4 @@
-// Template HTML con escape automatico dei valori interpolati.
+// HTML template with automatic escaping of interpolated values.
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 class SafeHtml {
@@ -25,7 +25,7 @@ export function render(element, content) {
   element.innerHTML = serialize(content);
 }
 
-// Raccoglie gli elementi marcati con data-ref in un oggetto { nome: elemento }.
+// Collects the elements marked with data-ref into a { name: element } object.
 export function collectRefs(root) {
   return Object.fromEntries([...root.querySelectorAll('[data-ref]')].map((node) => [node.dataset.ref, node]));
 }

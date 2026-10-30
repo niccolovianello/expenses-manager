@@ -1,6 +1,6 @@
 import { SHEET_SCHEMA, REQUIRED_COLUMNS } from './schema.js';
 
-// Giorni tra l'epoca di Excel (1899-12-30) e l'epoca Unix.
+// Days between the Excel epoch (1899-12-30) and the Unix epoch.
 const EXCEL_EPOCH_OFFSET = 25569;
 const DAY_MS = 86_400_000;
 
@@ -59,8 +59,8 @@ async function sha1Hex(value) {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// Id stabile tra un export e il successivo: dipende solo dal contenuto del movimento,
-// così regole e correzioni manuali restano agganciate dopo ogni nuovo import.
+// Id stable from one export to the next: it depends only on the transaction's content,
+// so rules and manual overrides stay attached after every new import.
 async function assignIds(transactions) {
   const occurrences = new Map();
   const fingerprints = await Promise.all(transactions.map((tx) => sha1Hex(

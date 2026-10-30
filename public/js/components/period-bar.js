@@ -7,8 +7,8 @@ import { selectAccounts } from '../state/selectors.js';
 
 const presetLabel = (id) => PRESETS.find((preset) => preset.id === id)?.label;
 
-// Barra del periodo: comanda tutte le viste che mostrano dati nel tempo.
-// Sul telefono si riduce a una riga fissa (‹ periodo ›) che si apre sui controlli completi.
+// Period bar: drives every view that shows data over time.
+// On the phone it collapses to a sticky row (‹ period ›) that expands to the full controls.
 export function mountPeriodBar(element, store, actions) {
   render(element, html`
     <div class="period-summary">

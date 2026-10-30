@@ -1,4 +1,4 @@
-// Unico punto di contatto con l'SDK Firebase (moduli ESM ufficiali da gstatic).
+// Single point of contact with the Firebase SDK (official ESM modules from gstatic).
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {
   initializeAuth, inMemoryPersistence, signInWithEmailAndPassword, signOut,
@@ -14,8 +14,8 @@ let services = null;
 export function getFirebase(firebaseConfig) {
   if (!services) {
     const app = initializeApp(firebaseConfig);
-    // Sessione solo in memoria: ricaricare la pagina richiede di nuovo il codice,
-    // che serve comunque per ricavare la chiave dei dati.
+    // In-memory session only: reloading the page asks for the code again,
+    // which is needed anyway to derive the data key.
     const auth = initializeAuth(app, { persistence: inMemoryPersistence });
     services = { auth, db: getFirestore(app) };
   }

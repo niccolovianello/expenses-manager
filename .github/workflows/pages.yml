@@ -1,4 +1,4 @@
-name: Pubblica su GitHub Pages
+name: Publish to GitHub Pages
 
 on:
   push:
@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
-      # Si pubblica solo public/: il resto del repository (test, script, documentazione) resta fuori dal sito.
+      # Only public/ is published: the rest of the repository (tests, scripts, docs) stays off the site.
       - uses: actions/upload-pages-artifact@v3
         with:
           path: public

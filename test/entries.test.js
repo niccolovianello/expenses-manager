@@ -6,14 +6,14 @@ import { createRepository } from '../public/js/data/repository.js';
 
 const expense = { kind: 'expense', date: '2026-10-29', amount: '12,50', account: 'Carta', category: 'Svago', comment: ' Cinema ' };
 
-test('gli importi accettano la virgola e i separatori delle migliaia', () => {
+test('amounts accept a decimal comma and thousands separators', () => {
   assert.equal(parseAmount('12,50'), 12.5);
   assert.equal(parseAmount('1.234,56 €'), 1234.56);
   assert.equal(parseAmount('7.5'), 7.5);
   assert.ok(Number.isNaN(parseAmount('')));
 });
 
-test('un movimento valido viene normalizzato', () => {
+test('a valid transaction is normalized', () => {
   const { entry } = normalizeEntry(expense);
   assert.equal(entry.amount, 12.5);
   assert.equal(entry.comment, 'Cinema');
@@ -21,7 +21,7 @@ test('un movimento valido viene normalizzato', () => {
   assert.equal(entry.toAccount, null);
 });
 
-test('i dati mancanti o incoerenti producono un messaggio chiaro', () => {
+test('missing or inconsistent data produces a clear message', () => {
   assert.match(normalizeEntry({ ...expense, amount: '0' }).error, /importo/);
   assert.match(normalizeEntry({ ...expense, date: '2026-02-30' }).error, /data/);
   assert.match(normalizeEntry({ ...expense, category: '' }).error, /categoria/);
@@ -30,7 +30,7 @@ test('i dati mancanti o incoerenti producono un messaggio chiaro', () => {
   assert.equal(normalizeEntry({ ...expense, kind: 'transfer', toAccount: 'Contanti', category: '' }).entry.sourceCategory, null);
 });
 
-test('le regole non cambiano la categoria scelta per un movimento inserito a mano', () => {
+test('rules do not change the category chosen for a manual transaction', () => {
   const rule = { id: 'r', kind: 'expense', field: 'comment', operator: 'contains', value: 'cinema', category: 'Altro', enabled: true };
   const tx = { id: 'm-1', origin: 'manual', ...normalizeEntry(expense).entry };
   assert.deepEqual(categorize(tx, { rules: [rule], overrides: {} }), { category: 'Svago', source: 'entry', ruleId: null });
@@ -41,7 +41,7 @@ function memoryStorage(initial = {}) {
   return { blobs, read: async (name) => structuredClone(blobs.get(name) ?? null), write: async (name, value) => { blobs.set(name, structuredClone(value)); } };
 }
 
-test('il repository aggiunge, modifica ed elimina i movimenti inseriti a mano', async () => {
+test('the repository adds, edits and deletes manual transactions', async () => {
   const storage = memoryStorage();
   const repo = createRepository(storage);
   let entries = await repo.addEntry(expense);
@@ -60,7 +60,7 @@ test('il repository aggiunge, modifica ed elimina i movimenti inseriti a mano', 
   assert.deepEqual(storage.blobs.get('entries'), []);
 });
 
-test('la chiave dei doppioni ignora descrizioni e categorie', () => {
+test('the duplicate key ignores descriptions and categories', () => {
   const imported = { kind: 'expense', date: '2026-10-29', amount: 12.5, account: 'Carta', toAccount: null, comment: 'altro testo' };
   assert.equal(duplicateKey(imported), duplicateKey(normalizeEntry(expense).entry));
 });

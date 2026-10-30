@@ -1,7 +1,7 @@
-// Cifratura lato client con Web Crypto. Dal codice segreto si ricavano due segreti indipendenti:
-//  - la password dell'account Firebase (sale fisso legato all'email), così Firebase non vede mai il codice;
-//  - la chiave AES-GCM dei dati (sale casuale salvato su Firestore), che non lascia mai il browser.
-// Conoscere uno dei due non permette di risalire all'altro né al codice.
+// Client-side encryption with Web Crypto. Two independent secrets are derived from the secret code:
+//  - the Firebase account password (fixed salt tied to the email), so Firebase never sees the code;
+//  - the AES-GCM data key (random salt stored on Firestore), which never leaves the browser.
+// Knowing one of them reveals neither the other nor the code.
 export const PBKDF2_ITERATIONS = 600_000;
 const AUTH_CONTEXT = 'spese/auth/v1';
 
@@ -45,8 +45,8 @@ async function pipe(bytes, transform) {
   return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(transform)).arrayBuffer());
 }
 
-// JSON → gzip → AES-GCM. Il nome del contenitore è dato autenticato: un blocco non può essere
-// spostato al posto di un altro senza che la decifratura fallisca.
+// JSON → gzip → AES-GCM. The container name is authenticated data: one blob cannot be
+// swapped in for another without decryption failing.
 export async function sealJson(key, value, label) {
   const plain = await pipe(encoder.encode(JSON.stringify(value)), new CompressionStream('gzip'));
   const iv = randomBytes(12);

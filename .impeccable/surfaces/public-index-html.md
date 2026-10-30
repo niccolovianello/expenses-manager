@@ -5,7 +5,7 @@ primary_target: "public/index.html"
 related_targets: []
 ---
 
-# Surface: Dashboard spese (public/index.html)
+# Surface: Expenses dashboard (public/index.html)
 
 Scope: the single-page app. Mode: Operate. Audience: the owner, desktop first, phone second. Task: pick a period, read totals and category split, drill into transactions, correct categories and write rules.
 

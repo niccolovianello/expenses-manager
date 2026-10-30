@@ -1,7 +1,7 @@
 import { parseISO } from './dates.js';
 
 const LOCALE = 'it-IT';
-// useGrouping 'always': in italiano Intl non separa le migliaia sotto i 10.000 (5073 vs 12.345).
+// useGrouping 'always': for Italian, Intl does not group thousands below 10,000 (5073 vs 12.345).
 const currency = new Intl.NumberFormat(LOCALE, { style: 'currency', currency: 'EUR', useGrouping: 'always' });
 const currencyRounded = new Intl.NumberFormat(LOCALE, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0, useGrouping: 'always' });
 const percent = new Intl.NumberFormat(LOCALE, { style: 'percent', maximumFractionDigits: 1 });

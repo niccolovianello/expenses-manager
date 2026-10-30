@@ -2,7 +2,7 @@
   "name": "expenses-manager",
   "version": "2.0.0",
   "private": true,
-  "description": "Analisi delle spese personali, dati cifrati su Firebase, pubblicata su GitHub Pages",
+  "description": "Personal expense analysis, with data encrypted on Firebase, published on GitHub Pages",
   "type": "module",
   "scripts": {
     "start": "node server/index.js",

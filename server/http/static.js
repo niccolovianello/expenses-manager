@@ -18,7 +18,7 @@ function resolveInside(dir, relative) {
   return target === dir || target.startsWith(dir + path.sep) ? target : null;
 }
 
-// mounts: [{ prefix, dir }] per cartelle, [{ prefix, files }] per singoli file mappati.
+// mounts: [{ prefix, dir }] for folders, [{ prefix, files }] for individually mapped files.
 export function createStaticHandler(mounts) {
   return async function serveStatic(req, res, pathname) {
     if (req.method !== 'GET' && req.method !== 'HEAD') return false;
