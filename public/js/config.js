@@ -3,13 +3,13 @@
 // Compila i campi seguendo DEPLOY.md.
 export const appConfig = {
   firebase: {
-    apiKey: '',
-    authDomain: '',
-    projectId: '',
-    appId: '',
+    apiKey: 'AIzaSyBjMZmRdJuPZwrKQQyAKXpu2kOQXm3OdtA',
+    authDomain: 'money-manager-79b34.firebaseapp.com',
+    projectId: 'money-manager-79b34',
+    appId: '1:891008287368:web:5813ac5d18612064f0d53d',
   },
-  // Email dell'unico utente creato in Firebase Authentication.
-  accountEmail: '',
+  // Email dell'unico utente creato in Firebase Authentication (solo identificativo, non una casella reale).
+  accountEmail: 'owner@spese.niccolovianello.invalid',
   // Minuti senza interazioni prima del blocco automatico (0 per disattivarlo).
   idleLockMinutes: 15,
 };
