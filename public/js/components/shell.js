@@ -15,6 +15,7 @@ const importButton = (label, variant) => html`<label class="btn ${variant} file-
 
 export function mountShell({ root, nav, railActions, views, periodBar, sourceInfo, status }, store, actions) {
   render(railActions, html`
+    <button type="button" class="btn btn-ghost btn-sm" data-action="add-entry">${icon('plus')}<span>Nuovo movimento</span></button>
     ${importButton('Importa export', 'btn-ghost btn-sm')}
     <button type="button" class="btn btn-ghost btn-sm" data-action="lock">${icon('lock')}<span>Blocca</span></button>`);
   render(nav, Object.entries(ROUTES).map(([route, { hash, title }]) => html`
@@ -46,7 +47,10 @@ export function mountShell({ root, nav, railActions, views, periodBar, sourceInf
         <h1 class="view-title">Importa i tuoi movimenti</h1>
         <p class="empty-body">Scegli l’export .xlsx dell’app di budgeting (fogli Spese, Entrate e Bonifici).
           Il file viene letto in questo browser e salvato su Firebase solo dopo essere stato cifrato con il tuo codice.</p>
-        ${importButton('Scegli il file .xlsx', 'btn-primary')}
+        <div class="onboarding-actions">
+          ${importButton('Scegli il file .xlsx', 'btn-primary')}
+          <button type="button" class="btn btn-secondary" data-action="add-entry">${icon('plus')}Inizia inserendo a mano</button>
+        </div>
       </div>`);
     } else if (state.status === 'error') {
       render(status, html`<div class="error-state" role="alert">
@@ -70,6 +74,7 @@ export function mountShell({ root, nav, railActions, views, periodBar, sourceInf
   });
   root.addEventListener('click', (event) => {
     if (event.target.closest('[data-action="lock"]')) actions.lock();
+    if (event.target.closest('[data-action="add-entry"]')) actions.openEntryForm();
   });
 
   watch(store, ['importing'], (state) => {

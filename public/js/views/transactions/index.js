@@ -9,6 +9,7 @@ import { selectCategories, selectTransactionRows } from '../../state/selectors.j
 import { emptyState } from '../../components/common.js';
 import { transactionRow } from './row.js';
 import { startNewCategory } from './new-category.js';
+import { mountEntryForm } from './entry-form.js';
 
 const KINDS = [
   { id: 'all', label: 'Tutti' },
@@ -35,7 +36,9 @@ export function mountTransactions(element, store, actions) {
         <h1 class="view-title">Movimenti</h1>
         <p class="view-sub" data-ref="sub"></p>
       </div>
+      <button type="button" class="btn btn-primary" data-action="new-entry">${icon('plus')}Nuovo movimento</button>
     </header>
+    <section class="panel entry-panel" data-ref="entry" hidden></section>
     <section class="panel panel-flush">
       <div class="filter-bar">
         <label class="search-field">
@@ -44,7 +47,7 @@ export function mountTransactions(element, store, actions) {
           <input type="search" class="input" name="query" data-ref="query" placeholder="Cerca movimenti" autocomplete="off">
         </label>
         <div class="segmented" role="group" aria-label="Tipo di movimento">
-          ${KINDS.map((kind) => html`<button type="button" class="segmented-btn" data-kind="${kind.id}" aria-pressed="false">${kind.label}</button>`)}
+          ${KINDS.map((kind) => html`<button type="button" class="segmented-btn" data-filter-kind="${kind.id}" aria-pressed="false">${kind.label}</button>`)}
         </div>
         <label class="field-inline">
           <span class="field-label">Categoria</span>
@@ -60,6 +63,7 @@ export function mountTransactions(element, store, actions) {
     </section>`);
 
   const refs = collectRefs(element);
+  mountEntryForm(refs.entry, store, actions);
   let rowsById = new Map();
   let renderedCategories = null;
 
@@ -88,8 +92,8 @@ export function mountTransactions(element, store, actions) {
 
   element.addEventListener('click', (event) => {
     const target = event.target;
-    const kind = target.closest('[data-kind]');
-    if (kind) return actions.setTxFilters({ kind: kind.dataset.kind });
+    const kind = target.closest('[data-filter-kind]');
+    if (kind) return actions.setTxFilters({ kind: kind.dataset.filterKind });
     const sort = target.closest('[data-sort]');
     if (sort) {
       const { sort: current } = store.get().txFilters;
@@ -99,6 +103,8 @@ export function mountTransactions(element, store, actions) {
     }
     const action = target.closest('[data-action]')?.dataset.action;
     const tx = rowsById.get(target.closest('[data-id]')?.dataset.id);
+    if (action === 'new-entry') return actions.openEntryForm();
+    if (action === 'edit-entry' && tx) return actions.openEntryForm(tx);
     if (action === 'reset' && tx) return actions.resetCategory(tx);
     if (action === 'rule' && tx) {
       const field = tx.comment ? 'comment' : tx.tag ? 'tag' : 'account';
@@ -114,8 +120,8 @@ export function mountTransactions(element, store, actions) {
   function syncFilters(state) {
     const filters = state.txFilters;
     if (document.activeElement !== refs.query && refs.query.value !== filters.query) refs.query.value = filters.query;
-    for (const button of element.querySelectorAll('[data-kind]')) {
-      button.setAttribute('aria-pressed', String(button.dataset.kind === filters.kind));
+    for (const button of element.querySelectorAll('[data-filter-kind]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.filterKind === filters.kind));
     }
     const categories = selectCategories(state);
     if (categories !== renderedCategories) {

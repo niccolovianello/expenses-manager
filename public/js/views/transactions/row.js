@@ -35,13 +35,19 @@ export function transactionRow(tx, state, categories) {
     <td class="col-date nowrap muted">${formatDate(tx.date)}</td>
     <td class="col-desc">
       <span class="cell-title">${describeTransaction(tx)}</span>
-      ${secondary ? html`<span class="cell-sub">${secondary}</span>` : ''}
+      ${secondary || tx.origin === 'manual' ? html`<span class="cell-sub">
+        ${tx.origin === 'manual' ? html`<span class="badge">Inserito a mano</span>` : ''}${secondary}
+      </span>` : ''}
     </td>
     <td class="col-category">${categoryCell(tx, state, categories)}</td>
     <td class="col-account nowrap">${tx.toAccount ? html`${tx.account} ${icon('arrow-right', { size: 12 })} ${tx.toAccount}` : tx.account}</td>
     <td class="col-amount num nowrap strong amount-${tx.kind}">${amount}</td>
     <td class="col-actions">
-      ${tx.kind === 'transfer' ? '' : html`<button type="button" class="icon-btn" data-action="rule" title="Crea una regola da questo movimento" aria-label="Crea una regola da ${describeTransaction(tx)}">${icon('rule')}</button>`}
+      ${tx.origin === 'manual'
+        ? html`<button type="button" class="icon-btn" data-action="edit-entry" title="Modifica o elimina" aria-label="Modifica ${describeTransaction(tx)}">${icon('pencil')}</button>`
+        : tx.kind === 'transfer'
+          ? ''
+          : html`<button type="button" class="icon-btn" data-action="rule" title="Crea una regola da questo movimento" aria-label="Crea una regola da ${describeTransaction(tx)}">${icon('rule')}</button>`}
     </td>
   </tr>`;
 }

@@ -4,7 +4,7 @@ Analisi delle spese personali a partire dall'export xlsx dell'app di budgeting (
 Sito statico su GitHub Pages; i dati stanno su Firebase, cifrati nel browser con un codice segreto. Vedi [DEPLOY.md](DEPLOY.md).
 
 - **Panoramica**: uscite, entrate, saldo e spesa media per qualsiasi periodo, con confronto sul periodo precedente; andamento per categoria, entrate contro uscite, classifica delle categorie con dettaglio per tag, spese più alte. Clic su una barra per zoomare su quell'intervallo.
-- **Movimenti**: ricerca, filtri, ordinamento e ricategorizzazione dal menu di ogni riga.
+- **Movimenti**: ricerca, filtri, ordinamento e ricategorizzazione dal menu di ogni riga. Con **Nuovo movimento** si inseriscono a mano uscite, entrate e giroconti, poi modificabili o eliminabili; restano dopo ogni nuovo import, e quelli che compaiono anche nell'export (stesso tipo, data, importo e conti) vengono tolti per non contarli due volte.
 - **Categorie e regole**: regole del tipo "commento contiene *Dropbox* → Abbonamenti" con anteprima sui dati reali; elenco delle correzioni manuali.
 
 Precedenza: correzione manuale → prima regola attiva che corrisponde → categoria dell'export. I giroconti sono mostrati ma esclusi dai totali.
