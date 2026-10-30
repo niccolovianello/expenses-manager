@@ -79,9 +79,9 @@ export function mountCategoryPanel(element, store, actions) {
           ${focus
             ? html`<button type="button" class="link-btn" data-action="back">${icon('arrow-left', { size: 14 })}Tutte le categorie</button>
                    <h2 class="panel-title">${focus}</h2>
-                   <p class="panel-sub">Per tag o descrizione · clic per vedere i movimenti</p>`
+                   <p class="panel-sub">Per tag o descrizione · scegline uno per vedere i movimenti</p>`
             : html`<h2 class="panel-title">${flowLabel.plural} per categoria</h2>
-                   <p class="panel-sub">Clic su una categoria per il dettaglio</p>`}
+                   <p class="panel-sub">Scegli una categoria per il dettaglio</p>`}
         </div>
       </header>
       ${items.length

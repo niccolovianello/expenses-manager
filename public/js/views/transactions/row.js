@@ -21,6 +21,7 @@ function categoryCell(tx, state, categories) {
 
   return html`<div class="cat-cell">
       ${swatch(colorVar)}
+      <span class="cat-name truncate">${tx.category}</span>
       <select class="input input-compact" data-action="category" data-id="${tx.id}" aria-label="Categoria di ${description}">
         ${options.map((name) => html`<option value="${name}" ${name === tx.category ? raw('selected') : ''}>${name}</option>`)}
         <option value="__new__">Nuova categoria…</option>
@@ -28,10 +29,13 @@ function categoryCell(tx, state, categories) {
     </div>${note}`;
 }
 
-export function transactionRow(tx, state, categories) {
+// Sul telefono la riga si legge e basta; toccandola si apre con categoria e azioni modificabili.
+const isEditable = (tx) => tx.origin === 'manual' || tx.kind !== 'transfer';
+
+export function transactionRow(tx, state, categories, open = false) {
   const amount = tx.kind === 'transfer' ? formatEUR(tx.amount) : formatSignedEUR(signedAmount(tx));
   const secondary = [tx.comment && tx.tag ? tx.tag : null, tx.time].filter(Boolean).join(' · ');
-  return html`<tr data-id="${tx.id}">
+  return html`<tr data-id="${tx.id}" class="${open ? 'is-open' : ''}">
     <td class="col-date nowrap muted">${formatDate(tx.date)}</td>
     <td class="col-desc">
       <span class="cell-title">${describeTransaction(tx)}</span>
@@ -43,6 +47,7 @@ export function transactionRow(tx, state, categories) {
     <td class="col-account nowrap">${tx.toAccount ? html`${tx.account} ${icon('arrow-right', { size: 12 })} ${tx.toAccount}` : tx.account}</td>
     <td class="col-amount num nowrap strong amount-${tx.kind}">${amount}</td>
     <td class="col-actions">
+      ${isEditable(tx) ? html`<button type="button" class="icon-btn row-toggle" data-action="toggle-row" aria-expanded="${open}" aria-label="${open ? 'Chiudi' : 'Modifica'} ${describeTransaction(tx)}">${icon(open ? 'chevron-up' : 'chevron-down')}</button>` : ''}
       ${tx.origin === 'manual'
         ? html`<button type="button" class="icon-btn" data-action="edit-entry" title="Modifica o elimina" aria-label="Modifica ${describeTransaction(tx)}">${icon('pencil')}</button>`
         : tx.kind === 'transfer'

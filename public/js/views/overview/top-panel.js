@@ -32,7 +32,7 @@ export function mountTopPanel(element, store, actions) {
         ${top.length ? html`<button type="button" class="btn btn-ghost btn-sm" data-action="all">Tutti i movimenti${icon('arrow-right', { size: 14 })}</button>` : ''}
       </header>
       ${top.length
-        ? html`<table class="data-table compact-table">
+        ? html`<table class="data-table compact-table top-table">
             <caption class="sr-only">${flowLabel.top}</caption>
             <thead><tr><th scope="col">Data</th><th scope="col">Descrizione</th><th scope="col" class="num">Importo</th></tr></thead>
             <tbody>${top.map((tx) => html`<tr>

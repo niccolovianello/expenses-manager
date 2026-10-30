@@ -42,7 +42,7 @@ export function mountCategoryTable(element, store, actions) {
       <header class="panel-head">
         <div>
           <h2 class="panel-title">Categorie</h2>
-          <p class="panel-sub">Tutto lo storico · clic per vedere i movimenti</p>
+          <p class="panel-sub">Tutto lo storico · scegline una per vedere i movimenti</p>
         </div>
         <div class="segmented" role="group" aria-label="Tipo di categoria">
           ${Object.entries(RULE_KINDS).map(([id, label]) => html`<button type="button" class="segmented-btn" data-kind="${id}" aria-pressed="${id === kind}">${label}</button>`)}
@@ -54,13 +54,13 @@ export function mountCategoryTable(element, store, actions) {
           <thead><tr>
             <th scope="col">Categoria</th>
             <th scope="col" class="num">Movimenti</th>
-            <th scope="col" class="num">Ricategorizzati</th>
+            <th scope="col" class="num col-edited">Ricategorizzati</th>
             <th scope="col" class="num">Totale</th>
           </tr></thead>
           <tbody>${rows.map((row) => html`<tr class="is-clickable" data-category="${row.name}">
             <th scope="row"><button type="button" class="row-link">${swatch(colors.colorOf(row.name))}${row.name}</button></th>
             <td class="num">${formatCount(row.count)}</td>
-            <td class="num muted">${row.edited ? formatCount(row.edited) : '—'}</td>
+            <td class="num muted col-edited">${row.edited ? formatCount(row.edited) : '—'}</td>
             <td class="num strong">${formatEUR(row.total)}</td>
           </tr>`)}</tbody>
         </table>

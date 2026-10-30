@@ -4,7 +4,7 @@ import { timeSeries } from '../../lib/aggregate.js';
 import { formatBucketLabel, formatBucketTitle, formatSignedEUR, GRANULARITY_NOUN } from '../../lib/format.js';
 import { watch } from '../../state/store.js';
 import { selectOverview } from '../../state/selectors.js';
-import { createBarChart } from '../../charts/bar-chart.js';
+import { createBarChart, exploreHint } from '../../charts/bar-chart.js';
 import { emptyState, legend, seriesTable } from '../../components/common.js';
 import { OVERVIEW_KEYS, isOverviewVisible } from './keys.js';
 
@@ -29,7 +29,8 @@ function buildModel(state) {
     labels: buckets.map((bucket) => formatBucketLabel(bucket.key, granularity)),
     titles: buckets.map((bucket) => formatBucketTitle(bucket, granularity)),
     series,
-    footer: (index) => `Saldo: ${formatSignedEUR(income.data[index] - expense.data[index])}`,
+    footer: (index) => [`Saldo: ${formatSignedEUR(income.data[index] - expense.data[index])}`, buckets.length > 1 ? exploreHint() : '']
+      .filter(Boolean).join('\n'),
   };
 }
 

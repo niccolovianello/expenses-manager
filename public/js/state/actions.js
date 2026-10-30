@@ -1,15 +1,17 @@
 import { todayISO } from '../lib/dates.js';
 import { entryInput } from '../domain/entries.js';
 import { inRange } from '../lib/aggregate.js';
-import { presetRange, shiftRange } from '../lib/periods.js';
+import { PRESETS, presetRange, shiftRange } from '../lib/periods.js';
 import { navigate } from '../router.js';
 import { DEFAULT_TX_FILTERS } from './initial.js';
 import { baselineCategory, selectExtent } from './selectors.js';
 import { showToast } from '../components/toast.js';
 
-// `api` è il repository dei dati (cifrati su Firebase); `lock` chiude la sessione.
-export function createActions(store, api, { lock } = {}) {
-  const setPeriod = (period) => store.set({ period });
+// `api` è il repository dei dati (cifrati su Firebase); `lock` chiude la sessione;
+// `markHistory` chiede che il prossimo cambio di stato crei una voce di cronologia.
+export function createActions(store, api, { lock, markHistory = () => {} } = {}) {
+  // Ogni cambio di periodo fatto a mano dimentica da dove era partito lo zoom.
+  const setPeriod = (period) => store.set({ period, zoomFrom: null });
 
   const newestFirst = (a, b) => (b.date + (b.time ?? '')).localeCompare(a.date + (a.time ?? ''));
 
@@ -91,15 +93,44 @@ export function createActions(store, api, { lock } = {}) {
       setPeriod({ preset: 'custom', ...shiftRange(period, direction) });
     },
 
+    // Lo zoom da un grafico ricorda il periodo di partenza, per poterci tornare con un tocco.
     zoomTo(range) {
+      const { zoomFrom, period } = store.get();
+      markHistory();
       store.set({ granularity: 'auto' });
       actions.setCustomRange(range.from, range.to);
+      store.set({ zoomFrom: zoomFrom ?? period });
+    },
+
+    undoZoom() {
+      const { zoomFrom } = store.get();
+      if (!zoomFrom) return;
+      if (zoomFrom.preset === 'custom') actions.setCustomRange(zoomFrom.from, zoomFrom.to);
+      else actions.setPreset(zoomFrom.preset);
+    },
+
+    // Stato letto dall'hash (indirizzo aperto o Indietro): periodo e categoria esplorata.
+    applyLocation(params, route) {
+      const { period, focusCategory } = store.get();
+      const preset = params.get('p');
+      const from = params.get('dal');
+      const to = params.get('al');
+      const knownPreset = PRESETS.some((candidate) => candidate.id === preset);
+      if (knownPreset && preset !== period.preset) actions.setPreset(preset);
+      else if (from && to && (period.preset !== 'custom' || from !== period.from || to !== period.to)) actions.setCustomRange(from, to);
+      if (route === 'overview' && (preset || from)) {
+        const category = params.get('cat');
+        if (category !== focusCategory) store.set({ focusCategory: category });
+      }
     },
 
     setGranularity: (granularity) => store.set({ granularity }),
     setAccount: (account) => store.set({ account }),
     setFlow: (flow) => store.set({ flow, focusCategory: null }),
-    focusCategory: (focusCategory) => store.set({ focusCategory }),
+    focusCategory(focusCategory) {
+      if (focusCategory) markHistory();
+      store.set({ focusCategory });
+    },
 
     setTxFilters(patch) {
       store.set((state) => ({ txFilters: { ...state.txFilters, limit: DEFAULT_TX_FILTERS.limit, ...patch } }));

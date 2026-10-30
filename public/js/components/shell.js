@@ -18,11 +18,25 @@ export function mountShell({ root, nav, railActions, views, periodBar, sourceInf
     <button type="button" class="btn btn-ghost btn-sm" data-action="add-entry">${icon('plus')}<span>Nuovo movimento</span></button>
     ${importButton('Importa export', 'btn-ghost btn-sm')}
     <button type="button" class="btn btn-ghost btn-sm" data-action="lock">${icon('lock')}<span>Blocca</span></button>`);
-  render(nav, Object.entries(ROUTES).map(([route, { hash, title }]) => html`
-    <a class="nav-link" href="${hash}" data-route="${route}">${icon(NAV_ICONS[route], { size: 18 })}<span>${title}</span></a>`));
+  // Sul telefono la stessa navigazione diventa la barra in basso, con "Nuovo" al centro.
+  const navLink = (route) => {
+    const { hash, title, short } = ROUTES[route];
+    return html`<a class="nav-link" href="${hash}" data-route="${route}">${icon(NAV_ICONS[route], { size: 20 })}<span class="nav-label">${title}</span><span class="nav-label-short" aria-hidden="true">${short}</span></a>`;
+  };
+  render(nav, html`
+    ${navLink('overview')}
+    ${navLink('transactions')}
+    <button type="button" class="nav-add" data-action="add-entry" aria-label="Nuovo movimento"><span class="nav-add-mark">${icon('plus', { size: 20 })}</span><span class="nav-label-short" aria-hidden="true">Nuovo</span></button>
+    ${navLink('rules')}`);
 
+  let shownRoute = null;
   watch(store, ['route', 'status'], (state) => {
     const ready = state.status === 'ready';
+    // Cambiando sezione si riparte dall'inizio della pagina, non dalla posizione della precedente.
+    if (ready && shownRoute !== state.route) {
+      if (shownRoute) window.scrollTo(0, 0);
+      shownRoute = state.route;
+    }
     for (const link of nav.querySelectorAll('[data-route]')) {
       if (link.dataset.route === state.route) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');

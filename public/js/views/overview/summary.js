@@ -41,7 +41,7 @@ export function mountSummary(element, store) {
         })}
       </dl>
       <p class="figures-note">
-        ${formatCount(now.count)} movimenti nel periodo${now.transfer ? html` · giroconti tra i tuoi conti per <span class="num">${formatEUR(now.transfer)}</span>, esclusi dai totali` : ''}
+        ${state.focusCategory ? 'Totali di tutte le categorie · ' : ''}${formatCount(now.count)} movimenti nel periodo${now.transfer ? html` · giroconti tra i tuoi conti per <span class="num">${formatEUR(now.transfer)}</span>, esclusi dai totali` : ''}
       </p>`);
   });
 }

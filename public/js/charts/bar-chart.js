@@ -3,10 +3,16 @@ import { formatAxisEUR, formatEUR } from '../lib/format.js';
 
 const DATA_END_RADIUS = 4;
 
+// Sul touch il primo tocco mostra i valori della barra, il secondo sulla stessa barra la esplora:
+// un solo tocco non deve cambiare il periodo a chi voleva solo leggere.
+const touch = window.matchMedia('(hover: none)');
+export const exploreHint = () => (touch.matches ? 'Tocca di nuovo per esplorare il periodo' : 'Clic per esplorare il periodo');
+
 // Grafico a barre (impilate o affiancate) con tooltip e clic sul singolo intervallo.
 // model: { labels, titles, series: [{ label, data, colorVar }], footer?(index) }
 export function createBarChart(canvas, { stacked = false, onSelect } = {}) {
   let model = { labels: [], titles: [], series: [] };
+  let armed = null;
 
   // Solo l'estremità della pila (o della barra) è arrotondata; la base resta ancorata all'asse.
   const radius = ({ chart, datasetIndex, dataIndex }) => {
@@ -58,7 +64,14 @@ export function createBarChart(canvas, { stacked = false, onSelect } = {}) {
         },
       },
       onClick: (_event, elements) => {
-        if (onSelect && elements.length) onSelect(elements[0].index);
+        if (!onSelect || !elements.length) return;
+        const { index } = elements[0];
+        if (touch.matches && armed !== index) {
+          armed = index;
+          return;
+        }
+        armed = null;
+        onSelect(index);
       },
       onHover: (event, elements) => {
         if (onSelect) event.native.target.style.cursor = elements.length ? 'pointer' : 'default';
@@ -68,6 +81,7 @@ export function createBarChart(canvas, { stacked = false, onSelect } = {}) {
 
   function update(next) {
     model = next;
+    armed = null;
     const surface = cssVar('--surface');
     chart.options.scales.x.border = { color: cssVar('--border-strong') };
     chart.options.scales.y.grid = { color: cssVar('--grid') };

@@ -145,15 +145,22 @@ export function mountRuleForm(element, store, actions) {
     }
   });
 
+  // Una bozza arriva da un'altra sezione: il modulo va mostrato e messo a fuoco solo
+  // quando la vista delle regole è davvero visibile, non mentre è ancora nascosta.
+  let pendingFocus = false;
   watch(store, ['status', 'route', 'config', 'transactions', 'ruleDraft'], (state) => {
     if (state.status !== 'ready') return;
     if (state.ruleDraft && state.ruleDraft.token !== lastToken) {
       lastToken = state.ruleDraft.token;
       draft = { ...EMPTY_DRAFT, ...state.ruleDraft };
       fillForm();
+      pendingFocus = true;
+    }
+    if (pendingFocus && state.route === 'rules') {
+      pendingFocus = false;
       requestAnimationFrame(() => {
-        element.scrollIntoView({ block: 'start', behavior: 'smooth' });
-        fields.value.focus();
+        element.scrollIntoView({ block: 'start' });
+        fields.value.focus({ preventScroll: true });
       });
     }
     syncCategories(state);

@@ -26,25 +26,26 @@ function isValidDate(iso) {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
+// In caso di errore `field` dice quale campo correggere.
 export function normalizeEntry(input = {}) {
   const { kind } = input;
-  if (!(kind in ENTRY_KINDS)) return { error: 'Scegli il tipo di movimento' };
-  if (!isValidDate(input.date)) return { error: 'Inserisci una data valida' };
+  if (!(kind in ENTRY_KINDS)) return { error: 'Scegli il tipo di movimento', field: 'kind' };
+  if (!isValidDate(input.date)) return { error: 'Inserisci una data valida', field: 'date' };
 
   const amount = Math.round(parseAmount(input.amount) * 100) / 100;
-  if (!Number.isFinite(amount) || amount <= 0) return { error: 'Inserisci un importo maggiore di zero' };
-  if (amount >= MAX_AMOUNT) return { error: 'Importo troppo alto' };
+  if (!Number.isFinite(amount) || amount <= 0) return { error: 'Inserisci un importo maggiore di zero', field: 'amount' };
+  if (amount >= MAX_AMOUNT) return { error: 'Importo troppo alto', field: 'amount' };
 
   const account = clean(input.account, 60);
-  if (!account) return { error: kind === 'transfer' ? 'Indica il conto di partenza' : 'Indica il conto' };
+  if (!account) return { error: kind === 'transfer' ? 'Indica il conto di partenza' : 'Indica il conto', field: 'account' };
 
   const isTransfer = kind === 'transfer';
   const toAccount = isTransfer ? clean(input.toAccount, 60) : null;
-  if (isTransfer && !toAccount) return { error: 'Indica il conto di destinazione' };
-  if (isTransfer && toAccount === account) return { error: 'I due conti del giroconto devono essere diversi' };
+  if (isTransfer && !toAccount) return { error: 'Indica il conto di destinazione', field: 'toAccount' };
+  if (isTransfer && toAccount === account) return { error: 'I due conti del giroconto devono essere diversi', field: 'toAccount' };
 
   const category = isTransfer ? null : normalizeCategory(input.category);
-  if (!isTransfer && !category) return { error: 'Scegli o scrivi una categoria' };
+  if (!isTransfer && !category) return { error: 'Scegli o scrivi una categoria', field: 'category' };
 
   return {
     entry: {

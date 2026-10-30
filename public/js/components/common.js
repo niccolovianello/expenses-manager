@@ -1,6 +1,6 @@
 import { html } from '../lib/html.js';
 import { icon } from '../lib/icons.js';
-import { formatEUR, formatSignedEUR, formatSignedPercent } from '../lib/format.js';
+import { formatCount, formatEUR, formatSignedEUR, formatSignedPercent } from '../lib/format.js';
 
 export const swatch = (colorVar) => html`<span class="swatch" style="--swatch: var(${colorVar})" aria-hidden="true"></span>`;
 
@@ -15,9 +15,13 @@ export function delta(change, { reference = 'periodo prec.', absolute = false } 
     return html`<span class="delta delta-none">Nessun confronto</span>`;
   }
   const flat = Math.abs(change) < (absolute ? 0.5 : 0.005);
+  // Oltre +1000% la percentuale non dice più nulla (base quasi vuota): meglio il multiplo, "×13".
+  const value = flat ? 'invariato'
+    : absolute ? formatSignedEUR(change)
+      : change >= 10 ? `×${formatCount(Math.round(change + 1))}` : formatSignedPercent(change);
   return html`<span class="delta${flat ? ' delta-none' : ''}">
     ${flat ? '' : icon(change > 0 ? 'trend-up' : 'trend-down', { size: 14 })}
-    <span class="num">${flat ? 'invariato' : absolute ? formatSignedEUR(change) : formatSignedPercent(change)}</span>
+    <span class="num">${value}</span>
     <span class="delta-ref">vs ${reference}</span>
   </span>`;
 }

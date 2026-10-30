@@ -219,9 +219,11 @@ Spacing follows a 4px base scale (4, 8, 12, 16, 20, 24, 32, 40). Panels pad 20px
 
 Responsive steps:
 - **1000px:** summary figures go from 4 to 2 columns.
-- **860px:** the rail becomes a horizontal top bar (brand mark plus icon-and-label tabs); the period bar stops being sticky and its options become a two-column grid.
-- **640px:** transaction tables become stacked rows (description and amount, then date and account, then category control and action); rule fields go single-column.
-- **480px:** inactive nav tabs collapse to icons with accessible names.
+- **860px (phone):** the rail becomes a 56px top bar (brand, import, lock) and the sections move to a bottom tab bar (Panoramica · Movimenti · Nuovo · Regole) above the safe-area inset. The period bar shrinks to one sticky row, ‹ period name and dates ›, that opens in place onto presets, dates, grouping and account. The app opens on "Questo mese"; on the overview, categories come before the charts.
+- **640px:** transaction tables become stacked rows. Sorted by date they are grouped under day headers, two lines per row (description and amount, then category and account); tapping a row opens it to the category menu and its actions. Rule fields go single-column.
+- **480px:** summary figures shrink with the viewport and never wrap; the "Ricategorizzati" column hides.
+
+Touch devices (`pointer: coarse`) get 44px targets (segments and chips 40px) and 16px field text so iOS never zooms on focus; precise pointers keep the compact desktop sizes. Row hover tints apply only where hover exists.
 
 ## Elevation & Depth
 
@@ -259,7 +261,7 @@ The period presets and the Uscite/Entrate switch. Surface-2 trough with hairline
 ### Inputs / Fields
 - **Style:** surface fill, border-strong 1px, 8px corners, 34px tall (compact variant 28px, 13px text).
 - **Hover:** border darkens to text-3. **Focus:** border becomes accent plus the focus ring.
-- **Labels:** 13px/550 text-2, above or inline. **Error:** 13px/550 in bad.
+- **Labels:** 13px/550 text-2, above or inline. **Error:** 13px/550 in bad, placed under the field it concerns; that field gets a bad border, `aria-invalid` and focus.
 - **Check / Switch:** native checkbox tinted with accent; switch is a 32x18 pill, border-strong off, accent on.
 
 ### Cards / Containers
@@ -267,7 +269,12 @@ The period presets and the Uscite/Entrate switch. Surface-2 trough with hairline
 - **Summary strip:** one panel, four figures divided by vertical hairlines (not four cards). The main figure's label is coloured accent-text.
 
 ### Navigation
-Sidebar rail on rail grey. Links are icon plus label, 500 weight, text-2; hover is a 6% ink wash; the current page is a white pill with resting shadow and accent-text. Collapses to a horizontal top bar under 860px.
+Sidebar rail on rail grey. Links are icon plus label, 500 weight, text-2; hover is a 6% ink wash; the current page is a white pill with resting shadow and accent-text. Under 860px it becomes a bottom tab bar on translucent rail grey with a hairline top border: 20px icon over a 12px short label, text-3, the current section in accent-text without a pill. "Nuovo" sits third as a 40x24 accent capsule.
+
+The URL carries the route, the period and the explored category (`#/panoramica?p=12m&cat=Casa`). Zooming from a chart and drilling into a category add a history entry, so Back undoes them.
+
+### Filter Chips
+Pills under the overview title for anything narrowing the view beyond the period: "← Torna a 12 mesi" after a chart zoom (surface with border-strong), "Categoria: Casa ✕" while drilling (accent-soft, accent-text). One tap removes them.
 
 ### Data Table
 Hairline row separators, 8px by 12px cells, sticky header in 12px/600 text-3 with sentence case. Rows hover to surface-2; sortable headers turn accent-text when active. Row actions reveal on hover/focus on pointer devices and stay visible on touch.
@@ -276,17 +283,17 @@ Hairline row separators, 8px by 12px cells, sticky header in 12px/600 text-3 wit
 Each row: swatch and name (550), amount (600, tabular) right, then a 6px bar in the category colour over a grid-coloured track, then metadata (share, count) and a neutral delta. Whole row is a button with 8px corners and surface-2 hover, drilling into transactions.
 
 ### Stacked Bar Chart (signature)
-Chart.js themed entirely from CSS variables (font, text-2 ticks, grid lines, inverse tooltip with 8px corners). No legend inside the canvas; an HTML legend of swatches sits below. Max bar thickness 36px, y-axis capped at five ticks with compact euro labels, x gridlines off. Each chart offers a table alternative.
+Chart.js themed entirely from CSS variables (font, text-2 ticks, grid lines, inverse tooltip with 8px corners). No legend inside the canvas; an HTML legend of swatches sits below. Max bar thickness 36px, y-axis capped at five ticks with compact euro labels, x gridlines off. Each chart offers a table alternative. On touch, the first tap on a bar shows its tooltip and a second tap on the same bar zooms the period, so reading a value never changes the period.
 
 ### Toast
-Bottom-centred, inverse tooltip colours, 8px corners, pop shadow; slides up 8px and fades in over 180ms. Error tone uses bad fill.
+Bottom-centred (above the tab bar on phone), inverse tooltip colours, 8px corners, pop shadow; slides up 8px and fades in over 180ms. Error tone uses bad fill.
 
 ## Do's and Don'ts
 
 ### Do:
 - **Do** read every colour, including chart colours, from the CSS custom properties so both schemes stay in sync.
 - **Do** use tabular numerals and right alignment for every amount.
-- **Do** show period comparisons as grey text with a trend arrow and "vs periodo prec.".
+- **Do** show period comparisons as grey text with a trend arrow and "vs periodo prec."; past +1000% show the multiple ("×13") instead of the percentage.
 - **Do** assign category colours from the fixed seven-slot order and group the rest as "Altre categorie" in series-other.
 - **Do** separate figures inside one panel with hairlines rather than splitting them into cards.
 - **Do** use 8px corners for controls and 12px for panels; 1px hairlines for every stroke.

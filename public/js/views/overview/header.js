@@ -1,5 +1,7 @@
 import { html, render, collectRefs } from '../../lib/html.js';
+import { icon } from '../../lib/icons.js';
 import { formatRange } from '../../lib/format.js';
+import { PRESETS } from '../../lib/periods.js';
 import { watch } from '../../state/store.js';
 import { selectOverview } from '../../state/selectors.js';
 import { OVERVIEW_KEYS, isOverviewVisible } from './keys.js';
@@ -13,12 +15,27 @@ export function mountOverviewHeader(element, store, actions) {
     <div class="segmented" role="group" aria-label="Flusso da analizzare">
       <button type="button" class="segmented-btn" data-flow="expense" aria-pressed="true">Uscite</button>
       <button type="button" class="segmented-btn" data-flow="income" aria-pressed="false">Entrate</button>
-    </div>`);
+    </div>
+    <div class="filter-chips" data-ref="chips" hidden></div>`);
   const refs = collectRefs(element);
 
   element.addEventListener('click', (event) => {
     const button = event.target.closest('[data-flow]');
     if (button) actions.setFlow(button.dataset.flow);
+    if (event.target.closest('[data-action="undo-zoom"]')) actions.undoZoom();
+    if (event.target.closest('[data-action="clear-focus"]')) actions.focusCategory(null);
+  });
+
+  // Ciò che restringe la vista oltre al periodo resta visibile in cima, con un tocco per toglierlo.
+  watch(store, ['route', 'status', 'zoomFrom', 'focusCategory'], (state) => {
+    if (!isOverviewVisible(state)) return;
+    const { zoomFrom, focusCategory } = state;
+    const from = zoomFrom && (PRESETS.find((preset) => preset.id === zoomFrom.preset)?.label ?? formatRange(zoomFrom));
+    refs.chips.hidden = !zoomFrom && !focusCategory;
+    render(refs.chips, html`
+      ${zoomFrom ? html`<button type="button" class="chip" data-action="undo-zoom">${icon('arrow-left', { size: 14 })}Torna a ${from}</button>` : ''}
+      ${focusCategory ? html`<button type="button" class="chip chip-filter" data-action="clear-focus" aria-label="Togli il filtro: categoria ${focusCategory}">
+        <span class="truncate">Categoria: <strong>${focusCategory}</strong></span>${icon('x', { size: 14 })}</button>` : ''}`);
   });
 
   watch(store, OVERVIEW_KEYS, (state) => {

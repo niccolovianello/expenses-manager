@@ -5,7 +5,7 @@ import { createRepository } from './data/repository.js';
 import { createStore } from './state/store.js';
 import { createInitialState } from './state/initial.js';
 import { createActions } from './state/actions.js';
-import { startRouter } from './router.js';
+import { startRouter, syncHash } from './router.js';
 import { applyChartDefaults, onThemeChange } from './charts/theme.js';
 import { mountLogin } from './components/login.js';
 import { mountToast } from './components/toast.js';
@@ -26,8 +26,11 @@ function startApp(session) {
   };
   startIdleLock(appConfig.idleLockMinutes, lock);
 
-  const store = createStore(createInitialState());
-  const actions = createActions(store, createRepository(session.storage), { lock });
+  // Sul telefono si apre sul mese in corso: un colpo d'occhio, non l'analisi dell'anno.
+  const phone = window.matchMedia('(max-width: 860px)').matches;
+  const store = createStore(createInitialState(phone ? { preset: 'month' } : {}));
+  let pushNext = false;
+  const actions = createActions(store, createRepository(session.storage), { lock, markHistory: () => { pushNext = true; } });
 
   applyChartDefaults(window.Chart);
   onThemeChange(() => {
@@ -50,7 +53,12 @@ function startApp(session) {
   mountTransactions(byId('view-transactions'), store, actions);
   mountRules(byId('view-rules'), store, actions);
 
-  startRouter(store);
+  startRouter(store, actions.applyLocation);
+  store.subscribe((state, changed) => {
+    if (!['route', 'period', 'focusCategory'].some((key) => changed.has(key))) return;
+    syncHash(state, { push: pushNext });
+    pushNext = false;
+  });
   actions.load();
 }
 

@@ -2,7 +2,7 @@ import { html, render, collectRefs } from '../../lib/html.js';
 import { icon } from '../../lib/icons.js';
 import { debounce } from '../../lib/memo.js';
 import { totals } from '../../lib/aggregate.js';
-import { formatCount, formatEUR, formatRange } from '../../lib/format.js';
+import { formatCount, formatDateLong, formatEUR, formatRange } from '../../lib/format.js';
 import { watch } from '../../state/store.js';
 import { DEFAULT_TX_FILTERS } from '../../state/initial.js';
 import { selectCategories, selectTransactionRows } from '../../state/selectors.js';
@@ -64,7 +64,9 @@ export function mountTransactions(element, store, actions) {
 
   const refs = collectRefs(element);
   mountEntryForm(refs.entry, store, actions);
+  const phone = window.matchMedia('(max-width: 640px)');
   let rowsById = new Map();
+  let openId = null;
   let renderedCategories = null;
 
   const applyQuery = debounce((query) => actions.setTxFilters({ query }), 150);
@@ -103,6 +105,13 @@ export function mountTransactions(element, store, actions) {
     }
     const action = target.closest('[data-action]')?.dataset.action;
     const tx = rowsById.get(target.closest('[data-id]')?.dataset.id);
+    const row = target.closest('tr');
+    const tappedRow = phone.matches && row?.querySelector('[data-action="toggle-row"]') && !target.closest('button, select, input, a, label');
+    if ((action === 'toggle-row' || tappedRow) && tx) {
+      openId = openId === tx.id ? null : tx.id;
+      paint(store.get());
+      return element.querySelector(`tr[data-id="${CSS.escape(tx.id)}"] [data-action="toggle-row"]`)?.focus({ preventScroll: true });
+    }
     if (action === 'new-entry') return actions.openEntryForm();
     if (action === 'edit-entry' && tx) return actions.openEntryForm(tx);
     if (action === 'reset' && tx) return actions.resetCategory(tx);
@@ -127,7 +136,7 @@ export function mountTransactions(element, store, actions) {
     if (categories !== renderedCategories) {
       renderedCategories = categories;
       const all = [...new Set([...categories.expense, ...categories.income])].sort((a, b) => a.localeCompare(b, 'it'));
-      render(refs.category, html`<option value="all">Tutte</option>${all.map((name) => html`<option value="${name}">${name}</option>`)}`);
+      render(refs.category, html`<option value="all">Tutte le categorie</option>${all.map((name) => html`<option value="${name}">${name}</option>`)}`);
     }
     if (filters.category !== 'all' && !refs.category.querySelector(`option[value="${CSS.escape(filters.category)}"]`)) {
       refs.category.append(new Option(filters.category, filters.category));
@@ -159,7 +168,11 @@ export function mountTransactions(element, store, actions) {
     }
 
     const categories = selectCategories(state);
-    render(refs.table, html`<table class="data-table tx-table">
+    // Ordinati per data, sul telefono i movimenti sono raggruppati per giorno (la data non si ripete in ogni riga).
+    const grouped = filters.sort.key === 'date';
+    const body = shown.map((tx, index) => html`${grouped && tx.date !== shown[index - 1]?.date
+      ? html`<tr class="day-row"><th colspan="6" scope="colgroup">${formatDateLong(tx.date)}</th></tr>` : ''}${transactionRow(tx, state, categories, tx.id === openId)}`);
+    render(refs.table, html`<table class="data-table tx-table${grouped ? ' is-grouped' : ''}">
       <caption class="sr-only">Movimenti filtrati</caption>
       <thead><tr>
         ${COLUMNS.map((column) => {
@@ -173,7 +186,7 @@ export function mountTransactions(element, store, actions) {
         })}
         <th scope="col"><span class="sr-only">Azioni</span></th>
       </tr></thead>
-      <tbody>${shown.map((tx) => transactionRow(tx, state, categories))}</tbody>
+      <tbody>${body}</tbody>
     </table>`);
 
     render(refs.foot, html`

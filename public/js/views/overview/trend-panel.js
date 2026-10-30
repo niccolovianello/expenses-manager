@@ -4,7 +4,7 @@ import { timeSeries } from '../../lib/aggregate.js';
 import { formatBucketLabel, formatBucketTitle, formatEUR, GRANULARITY_NOUN } from '../../lib/format.js';
 import { watch } from '../../state/store.js';
 import { selectColorMaps, selectOverview } from '../../state/selectors.js';
-import { createBarChart } from '../../charts/bar-chart.js';
+import { createBarChart, exploreHint } from '../../charts/bar-chart.js';
 import { OTHER_COLOR, OTHER_KEY, OTHER_LABEL } from '../../charts/palette.js';
 import { emptyState, legend, seriesTable } from '../../components/common.js';
 import { FLOW_LABELS, OVERVIEW_KEYS, isOverviewVisible } from './keys.js';
@@ -32,7 +32,7 @@ function buildModel(state) {
     labels: buckets.map((bucket) => formatBucketLabel(bucket.key, granularity)),
     titles: buckets.map((bucket) => formatBucketTitle(bucket, granularity)),
     series,
-    footer: (index) => [series.length > 1 ? `Totale: ${formatEUR(totalAt(index))}` : '', buckets.length > 1 ? 'Clic per esplorare il periodo' : '']
+    footer: (index) => [series.length > 1 ? `Totale: ${formatEUR(totalAt(index))}` : '', buckets.length > 1 ? exploreHint() : '']
       .filter(Boolean).join('\n'),
   };
 }

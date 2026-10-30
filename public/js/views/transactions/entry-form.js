@@ -34,8 +34,8 @@ export function mountEntryForm(element, store, actions) {
       </div>
       <datalist id="entry-accounts" data-ref="accounts"></datalist>
       <datalist id="entry-categories" data-ref="categories"></datalist>
-      <p class="field-error" data-ref="error" role="alert" hidden></p>
-      <div class="form-actions">
+      <span class="field-error" id="entry-error" data-ref="error" role="alert" hidden></span>
+      <div class="form-actions" data-ref="actions">
         <button type="submit" class="btn btn-primary" data-ref="submit"></button>
         <button type="button" class="btn btn-ghost" data-ref="cancel">Annulla</button>
         <button type="button" class="btn btn-ghost btn-danger" data-ref="remove" hidden>${icon('trash')}Elimina</button>
@@ -67,9 +67,20 @@ export function mountEntryForm(element, store, actions) {
     render(refs.categories, categories.map((name) => html`<option value="${name}"></option>`));
   }
 
-  function showError(message) {
+  // L'errore compare sotto il campo da correggere, che viene segnato e messo a fuoco.
+  function showError(message, field = null) {
+    for (const input of refs.form.querySelectorAll('[aria-invalid]')) {
+      input.removeAttribute('aria-invalid');
+      input.removeAttribute('aria-describedby');
+    }
     refs.error.textContent = message ?? '';
     refs.error.hidden = !message;
+    const input = message && field && fields[field] instanceof HTMLInputElement ? fields[field] : null;
+    if (!input) return refs.actions.before(refs.error);
+    input.setAttribute('aria-invalid', 'true');
+    input.setAttribute('aria-describedby', 'entry-error');
+    input.closest('.field').append(refs.error);
+    input.focus();
   }
 
   function open(entry) {
@@ -83,9 +94,17 @@ export function mountEntryForm(element, store, actions) {
     showError(null);
     setKind(values.kind ?? 'expense');
     element.hidden = false;
+    pendingFocus = true;
+  }
+
+  // Il modulo si apre anche da altre sezioni: lo si mette a fuoco quando la vista è visibile.
+  let pendingFocus = false;
+  function focusWhenVisible(state) {
+    if (!pendingFocus || state.route !== 'transactions') return;
+    pendingFocus = false;
     requestAnimationFrame(() => {
-      element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      fields.amount.focus();
+      element.scrollIntoView({ block: 'start' });
+      fields.amount.focus({ preventScroll: true });
     });
   }
 
@@ -116,8 +135,8 @@ export function mountEntryForm(element, store, actions) {
     event.preventDefault();
     if (saving) return;
     const input = readForm();
-    const { error } = normalizeEntry(input);
-    if (error) return showError(error);
+    const { error, field } = normalizeEntry(input);
+    if (error) return showError(error, field);
 
     saving = true;
     refs.submit.disabled = true;
@@ -132,12 +151,13 @@ export function mountEntryForm(element, store, actions) {
     fields.amount.focus();
   });
 
-  watch(store, ['entryDraft', 'transactions', 'config'], (state) => {
+  watch(store, ['entryDraft', 'transactions', 'config', 'route'], (state) => {
     if (state.entryDraft && state.entryDraft.token !== lastToken) {
       lastToken = state.entryDraft.token;
       open(state.entryDraft.entry);
     } else if (!element.hidden) {
       syncOptions(state);
     }
+    focusWhenVisible(state);
   });
 }

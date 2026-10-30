@@ -64,6 +64,11 @@
   --flow-in: #2f8f83;
   --flow-out: #5b6474;
 
+  /* Telefono: barra in alto con marchio e azioni, barra delle sezioni in basso. */
+  --topbar-h: 56px;
+  --tabbar-h: 60px;
+  --tap: 44px;
+
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --duration: 180ms;
 }

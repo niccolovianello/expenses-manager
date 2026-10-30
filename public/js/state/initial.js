@@ -10,7 +10,8 @@ export const DEFAULT_TX_FILTERS = {
   limit: 100,
 };
 
-export function createInitialState() {
+// `preset`: il periodo con cui si apre l'app (sul telefono il mese in corso).
+export function createInitialState({ preset = DEFAULT_PRESET } = {}) {
   return {
     status: 'loading',
     importing: false,
@@ -22,7 +23,8 @@ export function createInitialState() {
     meta: null,
     config: { rules: [], overrides: {} },
     route: 'overview',
-    period: { preset: DEFAULT_PRESET, ...presetRange(DEFAULT_PRESET, todayISO(), null) },
+    period: { preset, ...presetRange(preset, todayISO(), null) },
+    zoomFrom: null,
     granularity: 'auto',
     account: 'all',
     flow: 'expense',
