@@ -17,13 +17,14 @@
 </head>
 <body>
   <main class="login" id="login">
-    <form class="login-card" data-ref="form" novalidate>
+    <form class="login-card" id="login-form" name="login" data-ref="form" novalidate>
       <svg class="brand-mark" width="40" height="40" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7"/><path d="M8 18.5V14m4 4.5V9.5m4 9V12m4 6.5v-8"/></svg>
       <h1 class="login-title">Spese</h1>
       <p class="login-sub">Inserisci il codice per sbloccare i tuoi dati. Vengono decifrati solo in questo browser.</p>
-      <label class="field">
+      <input class="sr-only" type="text" id="login-username" name="username" data-ref="username" autocomplete="username" readonly tabindex="-1" aria-hidden="true">
+      <label class="field" for="login-code">
         <span class="field-label">Codice</span>
-        <input class="input" type="password" name="code" data-ref="code" autocomplete="current-password" autofocus required>
+        <input class="input" type="password" id="login-code" name="password" data-ref="code" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" required>
       </label>
       <p class="field-error" data-ref="error" role="alert" hidden></p>
       <button type="submit" class="btn btn-primary login-submit" data-ref="submit"><span data-ref="submitLabel">Sblocca</span></button>

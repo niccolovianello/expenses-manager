@@ -56,6 +56,7 @@ function startApp(session) {
 
 mountLogin(byId('login'), {
   configured: isConfigured(appConfig),
+  accountEmail: appConfig.accountEmail,
   async onSubmit(code) {
     const session = await unlock(code, appConfig);
     byId('login').hidden = true;
