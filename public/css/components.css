@@ -118,6 +118,13 @@
 
 .segmented-btn:hover { color: var(--text); }
 
+.segmented-icons .segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-2);
+}
+
 .segmented-btn[aria-pressed="true"] {
   background: var(--surface);
   color: var(--accent-text);
