@@ -14,6 +14,7 @@ import { mountPeriodBar } from './components/period-bar.js';
 import { mountOverview } from './views/overview/index.js';
 import { mountTransactions } from './views/transactions/index.js';
 import { mountRules } from './views/rules/index.js';
+import { mountAccounts } from './views/accounts/index.js';
 
 const byId = (id) => document.getElementById(id);
 
@@ -46,11 +47,12 @@ function startApp(session) {
     periodBar: byId('period-bar'),
     sourceInfo: byId('source-info'),
     status: byId('app-status'),
-    views: { overview: byId('view-overview'), transactions: byId('view-transactions'), rules: byId('view-rules') },
+    views: { overview: byId('view-overview'), transactions: byId('view-transactions'), accounts: byId('view-accounts'), rules: byId('view-rules') },
   }, store, actions);
   mountPeriodBar(byId('period-bar'), store, actions);
   mountOverview(byId('view-overview'), store, actions);
   mountTransactions(byId('view-transactions'), store, actions);
+  mountAccounts(byId('view-accounts'), store, actions);
   mountRules(byId('view-rules'), store, actions);
 
   startRouter(store, actions.applyLocation);

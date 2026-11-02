@@ -1,6 +1,7 @@
 export const ROUTES = {
   overview: { hash: '#/panoramica', title: 'Panoramica', short: 'Panoramica' },
   transactions: { hash: '#/movimenti', title: 'Movimenti', short: 'Movimenti' },
+  accounts: { hash: '#/conti', title: 'Conti', short: 'Conti' },
   rules: { hash: '#/categorie', title: 'Categorie e regole', short: 'Regole' },
 };
 

@@ -6,3 +6,5 @@ node_modules/
 .claude/
 .DS_Store
 .impeccable/hook.cache.json
+# Initial accounts with real balances: served only by the local server, never published.
+public/js/data/accounts.local.js

@@ -3,7 +3,7 @@ import { html, render, collectRefs } from '../../lib/html.js';
 import { icon } from '../../lib/icons.js';
 import { todayISO } from '../../lib/dates.js';
 import { watch } from '../../state/store.js';
-import { selectAccounts, selectCategories } from '../../state/selectors.js';
+import { selectCategories } from '../../state/selectors.js';
 
 const FIELDS = ['date', 'amount', 'account', 'toAccount', 'category', 'tag', 'comment'];
 const formatAmountInput = (amount) => (amount ? amount.toFixed(2).replace('.', ',') : '');
@@ -26,13 +26,13 @@ export function mountEntryForm(element, store, actions) {
       <div class="entry-fields">
         <label class="field"><span class="field-label">Data</span><input class="input" type="date" name="date" required></label>
         <label class="field"><span class="field-label">Importo (€)</span><input class="input input-amount" name="amount" inputmode="decimal" placeholder="0,00" autocomplete="off" required></label>
-        <label class="field"><span class="field-label" data-ref="accountLabel">Conto</span><input class="input" name="account" list="entry-accounts" autocomplete="off" required></label>
-        <label class="field" data-ref="toAccountField"><span class="field-label">Al conto</span><input class="input" name="toAccount" list="entry-accounts" autocomplete="off"></label>
+        <label class="field"><span class="field-label" data-ref="accountLabel">Conto</span><select class="input" name="account" required></select></label>
+        <label class="field" data-ref="toAccountField"><span class="field-label">Al conto</span><select class="input" name="toAccount"></select></label>
         <label class="field" data-ref="categoryField"><span class="field-label">Categoria</span><input class="input" name="category" list="entry-categories" placeholder="Scegli o scrivi" autocomplete="off"></label>
         <label class="field"><span class="field-label">Tag <span class="field-optional">facoltativo</span></span><input class="input" name="tag" autocomplete="off" maxlength="60"></label>
         <label class="field field-full"><span class="field-label">Descrizione <span class="field-optional">facoltativa</span></span><input class="input" name="comment" autocomplete="off" maxlength="200" placeholder="es. Cena con amici"></label>
       </div>
-      <datalist id="entry-accounts" data-ref="accounts"></datalist>
+      <p class="field-hint" data-ref="noAccounts" hidden>Non hai ancora conti: <a href="#/conti">creane uno nella sezione Conti</a>, poi torna qui.</p>
       <datalist id="entry-categories" data-ref="categories"></datalist>
       <span class="field-error" id="entry-error" data-ref="error" role="alert" hidden></span>
       <div class="form-actions" data-ref="actions">
@@ -61,8 +61,18 @@ export function mountEntryForm(element, store, actions) {
     syncOptions(store.get());
   }
 
+  // Only the accounts of the Conti section; an older transaction keeps its account even if it is not there.
+  function fillAccounts(select, names, value) {
+    const options = value && !names.includes(value) ? [...names, value] : names;
+    render(select, html`<option value="">Scegli un conto</option>${options.map((name) => html`<option value="${name}">${name}</option>`)}`);
+    select.value = value;
+  }
+
   function syncOptions(state) {
-    render(refs.accounts, selectAccounts(state).map((name) => html`<option value="${name}"></option>`));
+    const names = state.accounts.map((account) => account.name);
+    fillAccounts(fields.account, names, fields.account.value);
+    fillAccounts(fields.toAccount, names, fields.toAccount.value);
+    refs.noAccounts.hidden = names.length > 0;
     const categories = kind === 'transfer' ? [] : selectCategories(state)[kind];
     render(refs.categories, categories.map((name) => html`<option value="${name}"></option>`));
   }
@@ -75,7 +85,7 @@ export function mountEntryForm(element, store, actions) {
     }
     refs.error.textContent = message ?? '';
     refs.error.hidden = !message;
-    const input = message && field && fields[field] instanceof HTMLInputElement ? fields[field] : null;
+    const input = message && field && (fields[field] instanceof HTMLInputElement || fields[field] instanceof HTMLSelectElement) ? fields[field] : null;
     if (!input) return refs.actions.before(refs.error);
     input.setAttribute('aria-invalid', 'true');
     input.setAttribute('aria-describedby', 'entry-error');
@@ -86,6 +96,8 @@ export function mountEntryForm(element, store, actions) {
   function open(entry) {
     editingId = entry?.id ?? null;
     const values = entry ? entryInput(entry) : { date: todayISO() };
+    // The account selects get their options (and the value) from syncOptions, called by setKind.
+    for (const name of ['account', 'toAccount']) render(fields[name], html`<option value="${values[name] ?? ''}"></option>`);
     for (const name of FIELDS) fields[name].value = values[name] ?? '';
     fields.amount.value = formatAmountInput(values.amount);
     refs.title.textContent = editingId ? 'Modifica movimento' : 'Nuovo movimento';
@@ -151,7 +163,7 @@ export function mountEntryForm(element, store, actions) {
     fields.amount.focus();
   });
 
-  watch(store, ['entryDraft', 'transactions', 'config', 'route'], (state) => {
+  watch(store, ['entryDraft', 'transactions', 'config', 'accounts', 'route'], (state) => {
     if (state.entryDraft && state.entryDraft.token !== lastToken) {
       lastToken = state.entryDraft.token;
       open(state.entryDraft.entry);

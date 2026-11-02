@@ -19,6 +19,7 @@ export function createInitialState({ preset = DEFAULT_PRESET } = {}) {
     transactions: [],
     imported: [],
     entries: [],
+    accounts: [],
     entryDraft: null,
     meta: null,
     config: { rules: [], overrides: {} },

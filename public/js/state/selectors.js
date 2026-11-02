@@ -3,6 +3,7 @@ import { memo } from '../lib/memo.js';
 import { comparisonRange, enumerateBuckets, resolveGranularity } from '../lib/periods.js';
 import { describeTransaction, filterScope, totals } from '../lib/aggregate.js';
 import { buildColorMap } from '../charts/palette.js';
+import { accountSummary } from '../domain/accounts.js';
 
 const categorizedOf = memo(applyCategorization);
 export const selectCategorized = (state) => categorizedOf(state.transactions, state.config);
@@ -28,6 +29,9 @@ const accountsOf = memo((transactions) => {
   return [...accounts].sort((a, b) => a.localeCompare(b, 'it'));
 });
 export const selectAccounts = (state) => accountsOf(state.transactions);
+
+const accountSummaryOf = memo(accountSummary);
+export const selectAccountSummary = (state) => accountSummaryOf(state.accounts, state.entries);
 
 const categoriesOf = memo((categorized, rules) => {
   const byKind = { expense: new Set(), income: new Set() };

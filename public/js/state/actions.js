@@ -4,7 +4,9 @@ import { inRange } from '../lib/aggregate.js';
 import { PRESETS, presetRange, shiftRange } from '../lib/periods.js';
 import { navigate } from '../router.js';
 import { DEFAULT_TX_FILTERS } from './initial.js';
-import { baselineCategory, selectExtent } from './selectors.js';
+import { baselineCategory, selectAccountSummary, selectExtent } from './selectors.js';
+import { loadAccountSeed } from '../data/account-seed.js';
+import { formatEUR } from '../lib/format.js';
 import { showToast } from '../components/toast.js';
 
 // `api` is the data repository (encrypted on Firebase); `lock` ends the session;
@@ -47,10 +49,12 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     async load() {
       store.set({ status: 'loading', error: null });
       try {
-        const [dataset, config, entries] = await Promise.all([api.dataset(), api.categorization(), api.entries()]);
-        store.set({ config });
+        const [dataset, config, entries, stored] = await Promise.all([api.dataset(), api.categorization(), api.entries(), api.accounts()]);
+        const seed = stored === null ? await loadAccountSeed() : null;
+        const accounts = seed ? await api.seedAccounts(seed) : stored ?? [];
+        store.set({ config, accounts });
         setData({ imported: dataset?.transactions ?? [], meta: dataset?.meta ?? null, entries });
-        if (dataset || entries.length) showData();
+        if (dataset || entries.length || accounts.length) showData();
         else store.set({ status: 'empty' });
       } catch (error) {
         store.set({ status: 'error', error: error.message });
@@ -61,7 +65,8 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       if (!file || store.get().importing) return;
       store.set({ importing: true });
       try {
-        const { dataset, entries, removedDuplicates } = await api.importFile(file);
+        const { dataset, entries, accounts, removedDuplicates } = await api.importFile(file);
+        store.set({ accounts });
         setData({ imported: dataset.transactions, meta: dataset.meta, entries });
         showData();
         const duplicates = removedDuplicates === 1
@@ -156,7 +161,10 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
         const entries = id ? await api.updateEntry(id, input) : await api.addEntry(input);
         setData({ entries });
         const outside = !inRange(input, store.get().period) ? ' (fuori dal periodo mostrato)' : '';
-        showToast(`${id ? 'Movimento aggiornato' : 'Movimento aggiunto'}${outside}`);
+        // The new balance of the account, to confirm where the transaction went.
+        const account = !id && selectAccountSummary(store.get()).rows.find((row) => row.name === input.account);
+        const balance = account ? ` · ${account.name}: ${formatEUR(account.current)}` : '';
+        showToast(`${id ? 'Movimento aggiornato' : 'Movimento aggiunto'}${outside}${balance}`);
         return true;
       } catch (error) {
         showToast(error.message, { tone: 'error' });
@@ -168,6 +176,35 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       try {
         setData({ entries: await api.deleteEntry(id) });
         showToast('Movimento eliminato');
+        return true;
+      } catch (error) {
+        showToast(error.message, { tone: 'error' });
+        return false;
+      }
+    },
+
+    async saveAccount(id, input) {
+      try {
+        if (id) {
+          const { accounts, entries } = await api.updateAccount(id, input);
+          store.set({ accounts });
+          setData({ entries });
+        } else {
+          store.set({ accounts: await api.addAccount(input) });
+        }
+        if (store.get().status === 'empty') showData();
+        showToast(id ? 'Conto aggiornato' : 'Conto aggiunto');
+        return true;
+      } catch (error) {
+        showToast(error.message, { tone: 'error' });
+        return false;
+      }
+    },
+
+    async deleteAccount(id) {
+      try {
+        store.set({ accounts: await api.deleteAccount(id) });
+        showToast('Conto eliminato');
         return true;
       } catch (error) {
         showToast(error.message, { tone: 'error' });

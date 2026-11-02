@@ -5,7 +5,7 @@ import { ROUTES } from '../router.js';
 import { watch } from '../state/store.js';
 import { selectExtent } from '../state/selectors.js';
 
-const NAV_ICONS = { overview: 'dashboard', transactions: 'list', rules: 'tags' };
+const NAV_ICONS = { overview: 'dashboard', transactions: 'list', accounts: 'wallet', rules: 'tags' };
 const ROUTES_WITH_PERIOD = ['overview', 'transactions'];
 
 const importButton = (label, variant) => html`<label class="btn ${variant} file-btn">
@@ -27,6 +27,7 @@ export function mountShell({ root, nav, railActions, views, periodBar, sourceInf
     ${navLink('overview')}
     ${navLink('transactions')}
     <button type="button" class="nav-add" data-action="add-entry" aria-label="Nuovo movimento"><span class="nav-add-mark">${icon('plus', { size: 20 })}</span><span class="nav-label-short" aria-hidden="true">Nuovo</span></button>
+    ${navLink('accounts')}
     ${navLink('rules')}`);
 
   let shownRoute = null;

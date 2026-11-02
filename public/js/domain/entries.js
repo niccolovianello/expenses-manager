@@ -6,7 +6,7 @@ export const ENTRY_KINDS = { expense: 'Uscita', income: 'Entrata', transfer: 'Gi
 
 const MAX_AMOUNT = 1_000_000_000;
 
-const clean = (value, maxLength) => {
+export const cleanText = (value, maxLength) => {
   const text = String(value ?? '').trim().replace(/\s+/g, ' ');
   return text ? text.slice(0, maxLength) : null;
 };
@@ -36,11 +36,11 @@ export function normalizeEntry(input = {}) {
   if (!Number.isFinite(amount) || amount <= 0) return { error: 'Inserisci un importo maggiore di zero', field: 'amount' };
   if (amount >= MAX_AMOUNT) return { error: 'Importo troppo alto', field: 'amount' };
 
-  const account = clean(input.account, 60);
+  const account = cleanText(input.account, 60);
   if (!account) return { error: kind === 'transfer' ? 'Indica il conto di partenza' : 'Indica il conto', field: 'account' };
 
   const isTransfer = kind === 'transfer';
-  const toAccount = isTransfer ? clean(input.toAccount, 60) : null;
+  const toAccount = isTransfer ? cleanText(input.toAccount, 60) : null;
   if (isTransfer && !toAccount) return { error: 'Indica il conto di destinazione', field: 'toAccount' };
   if (isTransfer && toAccount === account) return { error: 'I due conti del giroconto devono essere diversi', field: 'toAccount' };
 
@@ -57,8 +57,8 @@ export function normalizeEntry(input = {}) {
       account,
       toAccount,
       sourceCategory: category,
-      tag: clean(input.tag, 60),
-      comment: clean(input.comment, 200),
+      tag: cleanText(input.tag, 60),
+      comment: cleanText(input.comment, 200),
     },
   };
 }

@@ -514,6 +514,7 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 
 .form-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-4);
 }
@@ -667,3 +668,95 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 .top-table { table-layout: fixed; }
 .top-table th:first-child { width: 4.5rem; }
 .top-table th:last-child { width: 7.5rem; }
+
+/* Accounts */
+.account-total {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-bottom: var(--space-4);
+}
+
+.account-total:empty { display: none; }
+
+.account-list { display: flex; flex-direction: column; }
+
+.account-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--space-3) var(--space-2);
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease-out);
+}
+
+.account-row:hover { background: var(--surface-2); }
+.account-row:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius); }
+
+.account-mark {
+  display: grid;
+  place-items: center;
+  width: var(--mark-size, 36px);
+  height: var(--mark-size, 36px);
+  border-radius: 50%;
+  background: var(--account-color);
+  color: #fff;
+}
+
+.account-name {
+  overflow: hidden;
+  font-size: var(--fs-l);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Sits before the balance; the empty column keeps balances aligned when the flag is missing. */
+.account-flag { grid-column: 3; display: inline-flex; color: var(--text-3); }
+.account-balance { grid-column: 4; font-size: var(--fs-l); font-weight: 600; font-variant-numeric: tabular-nums; }
+.account-balance.is-negative { color: var(--bad); }
+.account-row.is-excluded .account-balance { color: var(--text-2); font-weight: 500; }
+
+.field-wide { grid-column: span 2; }
+.account-excluded { align-self: end; min-height: 34px; }
+
+fieldset.field { min-width: 0; margin: 0; padding: 0; border: 0; }
+fieldset.field .field-label { margin-bottom: var(--space-1); padding: 0; }
+
+.picker { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.picker-option { display: inline-flex; cursor: pointer; }
+
+.picker-icon,
+.picker-color {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  transition: box-shadow var(--duration) var(--ease-out);
+}
+
+.picker-icon { background: var(--surface-2); border: 1px solid var(--border); color: var(--text-2); }
+.picker-color { background: var(--account-color); }
+
+.picker-option:hover .picker-icon { color: var(--text); border-color: var(--border-strong); }
+.picker-option input:checked + .picker-icon { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+.picker-option input:checked + .picker-color { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.picker-option input:focus-visible + span { box-shadow: var(--focus-ring); }
+
+.field-hint { color: var(--text-3); font-size: var(--fs-s); }
+.field-hint a { color: var(--accent-text); }
+
+@media (max-width: 480px) {
+  .field-wide { grid-column: auto; }
+  .account-row { padding-inline: 0; }
+}

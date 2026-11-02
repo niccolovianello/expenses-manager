@@ -170,13 +170,13 @@
   .rail-foot { display: none; }
   .brand { padding: 0; }
 
-  /* Bottom, within thumb reach: the three sections with "Nuovo" in the middle. */
+  /* Bottom, within thumb reach: the four sections with "Nuovo" in the middle. */
   .nav {
     position: fixed;
     inset: auto 0 0;
     z-index: 6;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: var(--space-1);
     padding: 6px max(var(--space-2), env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(var(--space-2), env(safe-area-inset-left));
     background: color-mix(in srgb, var(--rail) 92%, transparent);

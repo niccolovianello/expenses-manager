@@ -7,6 +7,7 @@ The app's interface is in Italian; section and button names below are quoted as 
 
 - **Panoramica** (overview): expenses, income, balance and average spending for any period, compared with the previous period; trend by category, income versus expenses, category ranking with a per-tag breakdown, top expenses. Click a bar to zoom into that interval.
 - **Movimenti** (transactions): search, filters, sorting and re-categorization from each row's menu. **Nuovo movimento** adds expenses, income and transfers by hand, which can then be edited or deleted; they survive every new import, and those that also appear in the export (same kind, date, amount and accounts) are removed so they are not counted twice.
+- **Conti** (accounts): every account with its current balance and the total of those not excluded from it. Tap an account to change its name, look or balance: a balance typed by hand is the truth from that moment, and every manual transaction entered afterwards moves it (expenses down, income up, transfers between the two accounts). Manual transactions must use one of these accounts. The initial accounts are in `public/js/data/accounts.local.js`, which is git-ignored because the site is public: opening the app once from `npm start` saves them, encrypted, on Firebase.
 - **Categorie e regole** (categories and rules): rules like "comment contains *Dropbox* → Abbonamenti" with a preview on real data; a list of manual overrides.
 
 Precedence: manual override → first matching active rule → export category. Transfers are shown but excluded from totals.
