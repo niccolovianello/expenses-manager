@@ -50,7 +50,7 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       store.set({ status: 'loading', error: null });
       try {
         const [dataset, config, entries, stored] = await Promise.all([api.dataset(), api.categorization(), api.entries(), api.accounts()]);
-        const seed = stored === null ? await loadAccountSeed() : null;
+        const seed = await loadAccountSeed();
         const accounts = seed ? await api.seedAccounts(seed) : stored ?? [];
         store.set({ config, accounts });
         setData({ imported: dataset?.transactions ?? [], meta: dataset?.meta ?? null, entries });

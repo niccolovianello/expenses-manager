@@ -50,7 +50,11 @@ test('the repository seeds once, ties transactions to accounts and renames them'
   assert.equal(await repo.accounts(), null);
   let accounts = await repo.seedAccounts([{ name: 'Carta', balance: 100, icon: 'card' }, { name: 'Cash', balance: 20 }]);
   assert.equal(accounts.length, 2);
-  assert.equal((await repo.seedAccounts([{ name: 'Altro' }])).length, 2);
+  // Later seeds only add what is missing, and never bring back a deleted account.
+  assert.equal((await repo.seedAccounts([{ name: 'carta' }, { name: 'Altro', balance: 5 }])).length, 3);
+  await repo.deleteAccount((await repo.accounts())[2].id);
+  accounts = await repo.seedAccounts([{ name: 'Altro', balance: 5 }]);
+  assert.equal(accounts.length, 2);
 
   const expense = { kind: 'expense', date: '2026-11-02', amount: '12,50', account: 'Carta', category: 'Svago' };
   await assert.rejects(() => repo.addEntry({ ...expense, account: 'Sconosciuto' }), /elenco/);

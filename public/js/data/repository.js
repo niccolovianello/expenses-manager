@@ -7,6 +7,7 @@ const DATASET = 'dataset';
 const CATEGORIZATION = 'categorization';
 const ENTRIES = 'entries';
 const ACCOUNTS = 'accounts';
+const SEEDED = 'account-seed';
 
 // Access to the app's data on top of an encrypted store with read(name) / write(name, value).
 // Four containers: the last imported export, manually entered transactions, rules and overrides, accounts.
@@ -136,13 +137,19 @@ export function createRepository(storage) {
       });
     },
 
-    // First start: the accounts are created only if they were never set up.
+    // Adds the initial accounts not there yet, next to the existing ones. Each one is added once:
+    // an account deleted later does not come back, one with the same name is left as it is.
     seedAccounts: (inputs) => serial(async () => {
-      if ((await loadAccounts()) !== null) return accounts;
+      const list = structuredClone((await loadAccounts()) ?? []);
+      const seeded = new Set((await storage.read(SEEDED)) ?? []);
+      const taken = new Set(list.map((account) => account.name.toLocaleLowerCase('it')));
+      const missing = inputs.filter((input) => !seeded.has(input.name) && !taken.has(input.name.toLocaleLowerCase('it')));
+      if (!missing.length) return accounts ?? [];
       const now = new Date().toISOString();
-      const list = [];
-      for (const input of inputs) list.push({ id: `a-${crypto.randomUUID()}`, balance: 0, ...validAccount(input, list), balanceAt: now });
-      return writeAccounts(list);
+      for (const input of missing) list.push({ id: `a-${crypto.randomUUID()}`, balance: 0, ...validAccount(input, list), balanceAt: now });
+      const next = await writeAccounts(list);
+      await storage.write(SEEDED, [...seeded, ...missing.map((input) => input.name)]);
+      return next;
     }),
 
     addAccount: (input) => mutateAccounts((list) => [
