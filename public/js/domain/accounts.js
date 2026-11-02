@@ -1,8 +1,10 @@
 import { cleanText, parseAmount } from './entries.js';
 
 // Accounts with a balance typed by hand. The balance is the truth at the moment it was set
-// (`balanceAt`): manual transactions entered after that moment, occurrences of recurring ones
-// happened after it and imported transactions dated after it move it; earlier ones are already part of it.
+// (`balanceAt`): manual transactions entered after that moment and occurrences of recurring ones
+// happened after it move it; earlier ones are already part of it. The export has no times, so for
+// imported transactions the account remembers what they added up to when the balance was set
+// (`exportBase`): whatever the export adds or takes away since then moves the balance.
 export const ACCOUNT_ICONS = {
   bank: 'Banca',
   card: 'Carta',
@@ -49,42 +51,65 @@ export function entryEffects(entry) {
   return [];
 }
 
-// When a transaction moves the balances: when it was entered for the manual ones and the occurrences,
-// when it happened for the imported ones (local time; the start of its day when the export has no time).
-function movedAt(entry) {
-  if (entry.origin === 'manual' || entry.origin === 'recurring') return entry.createdAt;
-  const moment = new Date(`${entry.date}T${entry.time ?? '00:00'}`);
-  return Number.isNaN(moment.getTime()) ? null : moment.toISOString();
-}
+const isEntered = (entry) => entry.origin === 'manual' || entry.origin === 'recurring';
+const countsFor = (account, entry) => isEntered(entry) && entry.createdAt > account.balanceAt;
 
-const countsFor = (account, entry) => {
-  const moment = movedAt(entry);
-  return Boolean(moment) && moment > account.balanceAt;
-};
-
-export function movementsSince(account, entries) {
+function effectOn(name, entries, include = () => true) {
   let sum = 0;
   for (const entry of entries) {
-    if (!countsFor(account, entry)) continue;
-    for (const [name, amount] of entryEffects(entry)) if (name === account.name) sum += amount;
+    if (!include(entry)) continue;
+    for (const [account, amount] of entryEffects(entry)) if (account === name) sum += amount;
   }
   return round2(sum);
 }
 
+export const movementsSince = (account, entries) => effectOn(account.name, entries, (entry) => countsFor(account, entry));
+
+// What the imported transactions add up to for an account.
+export const exportEffect = (name, imported) => effectOn(name, imported);
+
+// The local day a balance was set.
+const localDay = (iso) => {
+  const date = new Date(iso);
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+};
+
+// A balance set before `exportBase` existed includes the export stored now, until the next import.
+const baseOf = (account, imported) => account.exportBase ?? exportEffect(account.name, imported);
+
 // Current balance of every account, and the total of those not excluded from it.
-// `movements` are all the transactions shown: manual, occurrences and imported.
-export function accountSummary(accounts, movements) {
-  const rows = accounts.map((account) => ({ ...account, current: round2(account.balance + movementsSince(account, movements)) }));
+// `transactions` are all the transactions shown: manual, occurrences and imported.
+export function accountSummary(accounts, transactions) {
+  const entered = transactions.filter(isEntered);
+  const imported = transactions.filter((tx) => !isEntered(tx));
+  const rows = accounts.map((account) => ({
+    ...account,
+    current: round2(account.balance + movementsSince(account, entered) + exportEffect(account.name, imported) - baseOf(account, imported)),
+  }));
   const total = round2(rows.reduce((sum, row) => (row.excluded ? sum : sum + row.current), 0));
   return { rows, total };
 }
 
-// Transactions about to disappear (e.g. because the export now contains them) keep their effect on the balance,
-// less that of the `replacements` taking their place (the same transactions in the export, which may count too).
-export function foldEntries(accounts, removed, replacements = []) {
+// Gives `exportBase` to the accounts without one: what `imported` adds up to, or, with `setDay`,
+// only its transactions dated before the day the balance was set (with no earlier export to go by).
+export const anchorExport = (accounts, imported, { setDay = false } = {}) => accounts.map((account) => {
+  if (account.exportBase != null) return account;
+  const include = setDay ? (tx) => tx.date < localDay(account.balanceAt) : undefined;
+  return { ...account, exportBase: effectOn(account.name, imported, include) };
+});
+
+// Transactions about to disappear (e.g. because the export now contains them) keep their effect on the balance;
+// their `copies` in the export take their place without moving it a second time.
+export function foldEntries(accounts, removed, copies = []) {
   return accounts.map((account) => {
-    const moved = round2(movementsSince(account, removed) - movementsSince(account, replacements));
-    return moved ? { ...account, balance: round2(account.balance + moved) } : account;
+    const moved = movementsSince(account, removed);
+    const copied = exportEffect(account.name, copies);
+    if (!moved && !copied) return account;
+    return {
+      ...account,
+      balance: round2(account.balance + moved),
+      ...(account.exportBase == null ? {} : { exportBase: round2(account.exportBase + copied) }),
+    };
   });
 }
 

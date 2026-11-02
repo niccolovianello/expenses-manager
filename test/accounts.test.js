@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { accountSummary, foldEntries, normalizeAccount } from '../public/js/domain/accounts.js';
+import { accountSummary, anchorExport, foldEntries, normalizeAccount } from '../public/js/domain/accounts.js';
 import { createRepository } from '../public/js/data/repository.js';
 
 function memoryStorage(initial = {}) {
@@ -14,34 +14,37 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 const account = (name, balance, extra = {}) => ({ id: `a-${name}`, name, balance, balanceAt: '2026-11-01T10:00:00.000Z', icon: 'bank', color: '#e0592a', excluded: false, ...extra });
 const manual = (kind, amount, accountName, createdAt, toAccount = null) => ({ id: `m-${createdAt}`, origin: 'manual', kind, amount, account: accountName, toAccount, createdAt });
 
-// Imported transactions carry the local date and time of the export, no origin.
-const exported = (kind, amount, accountName, date, time = null) => ({ id: `x-${date}-${time}`, kind, amount, account: accountName, toAccount: null, date, time });
-const localISO = (date, time) => new Date(`${date}T${time}`).toISOString();
+// Imported transactions carry the date of the export, no time and no origin.
+const exported = (kind, amount, accountName, date, toAccount = null) => ({ id: `x-${date}-${amount}`, kind, amount, account: accountName, toAccount, date, time: null });
 
-test('only manual transactions entered after the balance was set move it', () => {
-  const accounts = [account('Carta', 100), account('Cash', 20), account('Directa', 5000, { excluded: true })];
-  const entries = [
-    manual('expense', 30, 'Carta', '2026-10-31T09:00:00.000Z'),
-    manual('expense', 12.5, 'Carta', '2026-11-01T11:00:00.000Z'),
-    manual('income', 50, 'Carta', '2026-11-01T12:00:00.000Z'),
-    manual('transfer', 10, 'Carta', '2026-11-01T13:00:00.000Z', 'Cash'),
+test('the export moves a balance by what it adds or takes away since the balance was set', () => {
+  const before = [exported('expense', 30, 'Carta', '2026-10-31'), exported('income', 200, 'Carta', '2026-10-01')];
+  const accounts = [account('Carta', 100, { exportBase: 170 }), account('Cash', 20, { exportBase: 0 })];
+  assert.equal(accountSummary(accounts, before).rows[0].current, 100);
+  // Back-dated, same-day and later transactions all count; one deleted from the export gives its amount back.
+  const after = [
+    before[1],
+    exported('expense', 4, 'Carta', '2026-10-15'),
+    exported('expense', 12.5, 'Carta', '2026-11-01'),
+    exported('transfer', 10, 'Carta', '2026-11-02', 'Cash'),
   ];
-  const { rows, total } = accountSummary(accounts, entries);
-  assert.deepEqual(rows.map((row) => row.current), [127.5, 30, 5000]);
-  assert.equal(total, 157.5);
+  const { rows, total } = accountSummary(accounts, after);
+  assert.deepEqual(rows.map((row) => row.current), [103.5, 30]);
+  assert.equal(total, 133.5);
 });
 
-test('imported transactions that happened after the balance was set move it', () => {
-  const balanceAt = localISO('2026-11-01', '10:00');
+test('a balance without a baseline includes the export stored when it gets one', () => {
+  // Set at 10:00 local on 1 November: transactions of that day may come after it.
+  const balanceAt = new Date('2026-11-01T10:00').toISOString();
+  const imported = [exported('expense', 30, 'Carta', '2026-10-31'), exported('expense', 8, 'Carta', '2026-11-01')];
   const accounts = [account('Carta', 100, { balanceAt })];
-  const imported = [
-    exported('expense', 30, 'Carta', '2026-10-31', '18:00'),
-    exported('expense', 4, 'Carta', '2026-11-01', '09:30'),
-    exported('expense', 8, 'Carta', '2026-11-01'),
-    exported('expense', 12.5, 'Carta', '2026-11-01', '10:30'),
-    exported('income', 50, 'Carta', '2026-11-02'),
-  ];
-  assert.equal(accountSummary(accounts, imported).rows[0].current, 137.5);
+  assert.equal(accountSummary(accounts, imported).rows[0].current, 100);
+  const [anchored] = anchorExport(accounts, imported);
+  assert.equal(anchored.exportBase, -38);
+  assert.equal(accountSummary([anchored], [...imported, exported('income', 50, 'Carta', '2026-11-02')]).rows[0].current, 150);
+  // With no earlier export, the first one counts from the day the balance was set.
+  const [first] = anchorExport(accounts, imported, { setDay: true });
+  assert.equal(accountSummary([first], imported).rows[0].current, 92);
 });
 
 test('removed transactions keep their effect on the balance', () => {
@@ -51,18 +54,17 @@ test('removed transactions keep their effect on the balance', () => {
   assert.equal(cash.balance, 20);
 });
 
-test('an import does not count twice a manual transaction it also contains', async () => {
-  const balanceAt = localISO('2026-11-01', '10:00');
-  // Entered after the balance: one happened after it too, the other before (entered late).
+test('an import does not count twice a manual transaction it also contains', () => {
+  // One entered after the balance was set, one before (already part of it).
   const entries = [
-    { ...manual('expense', 12.5, 'Carta', localISO('2026-11-01', '11:00')), date: '2026-11-01' },
-    { ...manual('expense', 7, 'Carta', localISO('2026-11-01', '12:00')), date: '2026-10-30' },
+    { ...manual('expense', 12.5, 'Carta', '2026-11-01T11:00:00.000Z'), date: '2026-11-01' },
+    { ...manual('expense', 7, 'Carta', '2026-10-31T12:00:00.000Z'), date: '2026-10-30' },
   ];
-  const copies = [exported('expense', 12.5, 'Carta', '2026-11-01', '10:45'), exported('expense', 7, 'Carta', '2026-10-30', '20:00')];
-  const accounts = [account('Carta', 100, { balanceAt })];
+  const copies = [exported('expense', 12.5, 'Carta', '2026-11-01'), exported('expense', 7, 'Carta', '2026-10-30')];
+  const accounts = [account('Carta', 100, { exportBase: 0 })];
   const before = accountSummary(accounts, entries).rows[0].current;
   const after = accountSummary(foldEntries(accounts, entries, copies), copies).rows[0].current;
-  assert.equal(before, 80.5);
+  assert.equal(before, 87.5);
   assert.equal(after, before);
 });
 
@@ -105,4 +107,18 @@ test('the repository seeds once, ties transactions to accounts and renames them'
   assert.ok(entries.every((entry) => entry.account === 'Revolut'));
   assert.equal(accountSummary(accounts, entries).rows[0].current, 80);
   assert.deepEqual(storage.blobs.get('accounts'), accounts);
+});
+
+test('a balance set in the repository remembers the export, and keeps it through a rename', async () => {
+  const transactions = [exported('expense', 30, 'Carta', '2026-10-31'), exported('transfer', 10, 'Cash', '2026-10-30', 'Carta')];
+  const storage = memoryStorage({ entries: [], dataset: { meta: {}, transactions } });
+  const repo = createRepository(storage);
+  let [carta] = await repo.addAccount({ name: 'Carta', balance: '100' });
+  assert.equal(carta.exportBase, -20);
+  assert.equal(accountSummary([carta], transactions).rows[0].current, 100);
+  // The export still calls it Carta: renaming it here leaves it unmatched, without moving the balance.
+  ({ accounts: [carta] } = await repo.updateAccount(carta.id, { name: 'Revolut', icon: 'card', color: '#e0592a' }));
+  assert.equal(accountSummary([carta], transactions).rows[0].current, 100);
+  ({ accounts: [carta] } = await repo.updateAccount(carta.id, { name: 'Revolut', icon: 'card', color: '#e0592a', balance: '50' }));
+  assert.equal(carta.exportBase, 0);
 });

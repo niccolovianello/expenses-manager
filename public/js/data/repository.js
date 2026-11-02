@@ -1,7 +1,7 @@
 import { importExport } from '../import/index.js';
 import { duplicateKey, normalizeEntry } from '../domain/entries.js';
 import { normalizeRecurrence } from '../domain/recurring.js';
-import { foldEntries, normalizeAccount } from '../domain/accounts.js';
+import { anchorExport, exportEffect, foldEntries, normalizeAccount, round2 } from '../domain/accounts.js';
 import { emptyCategorization, mutations, sanitizeCategorization } from './categorization-store.js';
 
 const DATASET = 'dataset';
@@ -19,8 +19,9 @@ export function createRepository(storage) {
   let categorization = null;
   let entries = null;
   let recurrences = null;
-  // undefined: not read yet; null: accounts never set up.
+  // undefined: not read yet; null: accounts never set up / nothing imported yet.
   let accounts;
+  let dataset;
   let queue = Promise.resolve();
 
   async function loadCategorization() {
@@ -36,6 +37,18 @@ export function createRepository(storage) {
   async function loadRecurrences() {
     if (!recurrences) recurrences = (await storage.read(RECURRING)) ?? [];
     return recurrences;
+  }
+
+  async function loadDataset() {
+    if (dataset === undefined) dataset = await storage.read(DATASET);
+    return dataset;
+  }
+
+  // A balance set now includes what the export adds up to for the account; without an export, the
+  // first import decides (see anchorExport).
+  async function withExportBase(account) {
+    const current = await loadDataset();
+    return { ...account, exportBase: current ? exportEffect(account.name, current.transactions) : null };
   }
 
   async function loadAccounts() {
@@ -120,7 +133,7 @@ export function createRepository(storage) {
   }));
 
   return {
-    dataset: () => storage.read(DATASET),
+    dataset: loadDataset,
     categorization: loadCategorization,
     entries: loadEntries,
     recurrences: loadRecurrences,
@@ -128,19 +141,24 @@ export function createRepository(storage) {
 
     // Manual transactions that now also appear in the export are removed, so they are not counted twice.
     async importFile(file) {
-      const dataset = await importExport(file);
-      await storage.write(DATASET, dataset);
-      const imported = new Map(dataset.transactions.map((tx) => [duplicateKey(tx), tx]));
+      const next = await importExport(file);
+      // Balances without a baseline get one from the previous export before it is gone.
+      const previous = await loadDataset();
+      const anchored = await mutateAccounts((list) =>
+        previous ? anchorExport(list, previous.transactions) : anchorExport(list, next.transactions, { setDay: true }));
+      await storage.write(DATASET, next);
+      dataset = next;
+      const imported = new Map(next.transactions.map((tx) => [duplicateKey(tx), tx]));
       const isDuplicate = (entry) => imported.has(duplicateKey(entry));
       const current = await loadEntries();
       const duplicates = current.filter(isDuplicate);
-      if (!duplicates.length) return { dataset, entries: current, accounts: (await loadAccounts()) ?? [], removedDuplicates: 0 };
+      if (!duplicates.length) return { dataset: next, entries: current, accounts: anchored, removedDuplicates: 0 };
       // The balances already include those transactions: removing them must not move the balances back,
       // nor must their copies in the export count a second time.
       const copies = duplicates.map((entry) => imported.get(duplicateKey(entry)));
       const nextAccounts = await mutateAccounts((list) => foldEntries(list, duplicates, copies));
       const remaining = await mutateEntries((list) => list.filter((entry) => !isDuplicate(entry)));
-      return { dataset, entries: remaining, accounts: nextAccounts, removedDuplicates: duplicates.length };
+      return { dataset: next, entries: remaining, accounts: nextAccounts, removedDuplicates: duplicates.length };
     },
 
     async addEntry(input) {
@@ -198,7 +216,7 @@ export function createRepository(storage) {
       const missing = inputs.filter((input) => !seeded.has(input.name) && !taken.has(input.name.toLocaleLowerCase('it')));
       if (!missing.length) return accounts ?? [];
       const now = new Date().toISOString();
-      for (const input of missing) list.push({ id: `a-${crypto.randomUUID()}`, balance: 0, ...validAccount(input, list), balanceAt: now });
+      for (const input of missing) list.push(await withExportBase({ id: `a-${crypto.randomUUID()}`, balance: 0, ...validAccount(input, list), balanceAt: now }));
       const next = await writeAccounts(list);
       await storage.write(SEEDED, [...seeded, ...missing.map((input) => input.name)]);
       return next;
@@ -221,22 +239,31 @@ export function createRepository(storage) {
       return list;
     }),
 
-    addAccount: (input) => mutateAccounts((list) => [
-      ...list,
-      { id: `a-${crypto.randomUUID()}`, balance: 0, ...validAccount(input, list), balanceAt: new Date().toISOString() },
-    ]),
+    addAccount: (input) => serial(async () => {
+      const list = structuredClone((await loadAccounts()) ?? []);
+      const account = await withExportBase({ id: `a-${crypto.randomUUID()}`, balance: 0, ...validAccount(input, list), balanceAt: new Date().toISOString() });
+      return writeAccounts([...list, account]);
+    }),
 
     // A new balance becomes the truth from now on. A new name also moves the manual and recurring
-    // transactions that used the old one, so their effect on the balance is kept.
+    // transactions that used the old one, so their effect on the balance is kept; the imported ones keep
+    // the name of the export, so the baseline follows the name.
     async updateAccount(id, input) {
       let renamed = null;
-      const nextAccounts = await mutateAccounts((list) => {
+      const nextAccounts = await serial(async () => {
+        const list = structuredClone((await loadAccounts()) ?? []);
         const index = accountIndex(list, id);
-        const previous = list[index];
+        const current = await loadDataset();
+        const imported = current?.transactions ?? [];
+        const [previous] = current ? anchorExport([list[index]], imported) : [list[index]];
         const account = validAccount(input, list, id);
         if (account.name !== previous.name) renamed = { from: previous.name, to: account.name };
-        list[index] = { ...previous, ...account, ...('balance' in account ? { balanceAt: new Date().toISOString() } : {}) };
-        return list;
+        const updated = { ...previous, ...account };
+        if ('balance' in account) list[index] = await withExportBase({ ...updated, balanceAt: new Date().toISOString() });
+        else if (renamed && previous.exportBase != null) {
+          list[index] = { ...updated, exportBase: round2(previous.exportBase - exportEffect(renamed.from, imported) + exportEffect(renamed.to, imported)) };
+        } else list[index] = updated;
+        return writeAccounts(list);
       });
       const nextEntries = renamed ? await mutateEntries((list) => renameIn(list, renamed)) : await loadEntries();
       const nextRecurrences = renamed ? await mutateRecurrences((list) => renameIn(list, renamed)) : await loadRecurrences();
