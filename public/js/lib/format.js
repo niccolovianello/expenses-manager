@@ -16,7 +16,8 @@ const longMonth = dateFormat({ month: 'long', year: 'numeric' });
 
 const capitalize = (text) => text.charAt(0).toLocaleUpperCase(LOCALE) + text.slice(1);
 
-export const formatEUR = (value) => currency.format(value);
+// A true minus sign (−), as in formatSignedEUR, instead of the hyphen Intl uses.
+export const formatEUR = (value) => currency.format(value).replace('-', '−');
 export const formatEURRounded = (value) => currencyRounded.format(value);
 export const formatAxisEUR = (value) => `${integer.format(Math.round(value))} €`;
 export const formatPercent = (value) => percent.format(value);
@@ -35,6 +36,12 @@ export function formatSignedPercent(value) {
 export const formatDate = (iso) => fullDate.format(parseISO(iso));
 export const formatDateShort = (iso) => dayMonth.format(parseISO(iso));
 export const formatDateLong = (iso) => capitalize(longDate.format(parseISO(iso)));
+
+// "Ottobre 2026" or "2025" when the range is a whole month or year (see wholePeriod), else null.
+export function formatWholePeriod(whole) {
+  if (!whole) return null;
+  return whole.unit === 'year' ? whole.key.slice(0, 4) : capitalize(longMonth.format(parseISO(whole.key)));
+}
 
 export function formatRange({ from, to }) {
   if (from === to) return formatDate(from);

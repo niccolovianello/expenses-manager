@@ -54,7 +54,7 @@ export function transactionRow(tx, state, categories, open = false) {
         ? html`<button type="button" class="icon-btn" data-action="edit-entry" title="${tx.origin === 'recurring' ? 'Modifica la ripetizione' : 'Modifica o elimina'}" aria-label="Modifica ${describeTransaction(tx)}">${icon('pencil')}</button>`
         : tx.kind === 'transfer'
           ? ''
-          : html`<button type="button" class="icon-btn" data-action="rule" title="Crea una regola da questo movimento" aria-label="Crea una regola da ${describeTransaction(tx)}">${icon('rule')}</button>`}
+          : html`<button type="button" class="icon-btn row-rule-btn" data-action="rule" title="Crea una regola da questo movimento" aria-label="Crea una regola da ${describeTransaction(tx)}">${icon('rule')}<span class="row-action-label" aria-hidden="true">Crea regola</span></button>`}
     </td>
   </tr>`;
 }

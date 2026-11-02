@@ -20,10 +20,22 @@ export const ACCOUNT_ICONS = {
   people: 'Spese condivise',
 };
 
+// Stored as the hex value (the data does not change); shown through the --account-N tokens,
+// which tokens.css steps for the dark scheme. The names are what a screen reader announces.
 export const ACCOUNT_COLORS = [
   '#e0592a', '#f0904a', '#ec6a56', '#e5484d', '#d67aa4', '#8e5bd0',
   '#2337c6', '#2a5aa8', '#2f8f83', '#5aa84f', '#8a9f80', '#b0653a', '#5d4b47', '#6b7079',
 ];
+export const ACCOUNT_COLOR_NAMES = [
+  'Arancio', 'Albicocca', 'Corallo', 'Rosso', 'Rosa', 'Viola',
+  'Indaco', 'Blu', 'Verde acqua', 'Verde', 'Salvia', 'Terracotta', 'Moka', 'Grigio',
+];
+
+// The CSS color of an account: its token, or the stored value for a color outside the palette.
+export function accountColor(hex) {
+  const index = ACCOUNT_COLORS.indexOf(String(hex).toLowerCase());
+  return index === -1 ? hex : `var(--account-${index + 1}, ${hex})`;
+}
 
 const MAX_BALANCE = 1_000_000_000;
 

@@ -1,12 +1,11 @@
 import { html, render } from '../lib/html.js';
 import { icon } from '../lib/icons.js';
 import { formatCount, formatDate } from '../lib/format.js';
-import { ROUTES } from '../router.js';
+import { ROUTES, ROUTES_WITH_PERIOD } from '../router.js';
 import { watch } from '../state/store.js';
 import { selectExtent } from '../state/selectors.js';
 
 const NAV_ICONS = { overview: 'dashboard', transactions: 'list', accounts: 'wallet', rules: 'tags' };
-const ROUTES_WITH_PERIOD = ['overview', 'transactions'];
 
 const importButton = (label, variant) => html`<label class="btn ${variant} file-btn">
   ${icon('upload')}<span>${label}</span>

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { categorize, normalizeRule, ruleMatches, UNCATEGORIZED } from '../public/js/domain/categorize.js';
+import { categorize, normalizeRule, ruleDraftFrom, ruleMatches, UNCATEGORIZED } from '../public/js/domain/categorize.js';
+import { mutations } from '../public/js/data/categorization-store.js';
 
 const expense = { id: 'a1', kind: 'expense', sourceCategory: 'Casa', comment: 'Fibra casa (internet)', tag: null, account: 'Conto principale' };
 const rule = { id: 'r1', kind: 'expense', field: 'comment', operator: 'contains', value: 'fibra', category: 'Telefono', enabled: true };
@@ -38,4 +39,22 @@ test('normalizeRule rejects incomplete input', () => {
   assert.match(normalizeRule({ ...rule, value: '  ' }).error, /testo/);
   assert.match(normalizeRule({ ...rule, category: '' }).error, /categoria/);
   assert.equal(normalizeRule({ ...rule, field: 'x' }).error !== undefined, true);
+});
+
+test('a rule drafted from a transaction targets the merchant, not the whole description', () => {
+  const tx = { kind: 'expense', comment: 'Esselunga — spesa settimanale', tag: null, account: 'Carta' };
+  assert.deepEqual(ruleDraftFrom(tx), { kind: 'expense', field: 'comment', operator: 'contains', value: 'Esselunga', category: '' });
+  assert.equal(ruleDraftFrom({ ...tx, comment: 'Bar centrale, colazione' }, 'Ristoranti').category, 'Ristoranti');
+  assert.equal(ruleDraftFrom({ ...tx, comment: 'Benzina Q8' }).value, 'Benzina Q8');
+  assert.equal(ruleDraftFrom({ ...tx, comment: null, tag: 'lavoro' }).field, 'tag');
+});
+
+test('a deleted rule comes back with its id at its old place', () => {
+  const rule = { id: 'b', kind: 'expense', field: 'comment', operator: 'contains', value: 'Netflix', category: 'Svago', enabled: true };
+  const state = { rules: [{ ...rule, id: 'a' }, rule, { ...rule, id: 'c' }], overrides: {} };
+  mutations.deleteRule(state, 'b');
+  mutations.restoreRule(state, rule, 1);
+  assert.deepEqual(state.rules.map((r) => r.id), ['a', 'b', 'c']);
+  mutations.restoreRule(state, rule, 1);
+  assert.equal(state.rules.length, 3);
 });

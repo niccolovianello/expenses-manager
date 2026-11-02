@@ -27,7 +27,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
-  margin-left: auto;
 }
 
 .period-options select { max-width: 13rem; }
@@ -189,6 +188,12 @@
   font-size: var(--fs-s);
 }
 
+/* Four columns: the figures shrink with the strip, so "−11.057,98 €" never spills out of its column. */
+@media (min-width: 1001px) {
+  .figures { container-type: inline-size; }
+  .figure-value { font-size: clamp(var(--fs-l), 2.6cqi, var(--fs-2xl)); white-space: nowrap; }
+}
+
 @media (max-width: 1000px) {
   .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--space-5); }
   .figure:nth-child(3) { padding-left: 0; border-left: 0; }
@@ -244,7 +249,7 @@
 .rank-bar {
   grid-column: 1 / -1;
   height: 6px;
-  border-radius: 3px;
+  border-radius: 999px;
   background: var(--grid);
   overflow: hidden;
 }
@@ -252,7 +257,7 @@
 .rank-bar > span {
   display: block;
   height: 100%;
-  border-radius: 3px;
+  border-radius: inherit;
   background: var(--swatch);
 }
 
@@ -437,7 +442,12 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
   .tx-table tr.is-open { background: var(--surface-2); }
   .tx-table tr.is-open .cat-cell select { flex: 1; max-width: none; }
   .tx-table .row-toggle { display: inline-grid; color: var(--text-3); }
+  /* On the phone the rule button carries its name: the icon alone reads as a filter. */
+  .tx-table tr.is-open .row-rule-btn { display: inline-flex; gap: var(--space-1); width: auto; padding: 0 var(--space-2); color: var(--accent-text); font-size: var(--fs-s); font-weight: 550; }
+  .tx-table tr.is-open .row-action-label { display: inline; }
 }
+
+.row-action-label { display: none; }
 
 .cat-name,
 .row-toggle,
@@ -605,7 +615,8 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
   .filter-bar .segmented { display: flex; width: 100%; }
   .filter-bar .segmented-btn { flex: 1; padding: 0 var(--space-2); }
   /* Category and "solo ricategorizzati" share one row; the menu already says what it filters. */
-  .filter-bar .field-inline { flex: 1; min-width: 0; }
+  /* Wide enough for "Tutte le categorie"; when it is not, the check goes to its own row. */
+  .filter-bar .field-inline { flex: 1 1 13rem; min-width: 0; }
   .filter-bar .field-inline .field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .filter-bar .field-inline select { flex: 1; min-width: 0; }
 }
@@ -654,6 +665,25 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 .btn-danger { color: var(--bad); }
 .btn-danger:hover { background: var(--bad-soft); color: var(--bad); }
 
+/* Confirmation in place of the form buttons (delete, discard changes, new balance) */
+.confirm-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.confirm-message { font-weight: 600; }
+.confirm-detail { color: var(--text-2); font-size: var(--fs-s); }
+.confirm-buttons { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.btn-danger-solid { background: var(--bad); color: var(--on-bad); }
+.btn-danger-solid:hover { background: color-mix(in srgb, var(--bad) 86%, var(--text)); }
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -685,6 +715,8 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 .entry-panel .panel-head { flex-wrap: nowrap; }
 
 /* The sticky top bars must not cover a form scrolled into view. */
+.panel { scroll-margin-top: calc(var(--period-bar-h, 0px) + var(--space-3)); }
+
 @media (max-width: 860px) {
   .panel { scroll-margin-top: calc(var(--topbar-h) + var(--space-3)); }
   .entry-panel { scroll-margin-top: calc(var(--topbar-h) + 64px); }
@@ -749,7 +781,6 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 /* Sits before the balance; the empty column keeps balances aligned when the flag is missing. */
 .account-flag { grid-column: 3; display: inline-flex; color: var(--text-3); }
 .account-balance { grid-column: 4; font-size: var(--fs-l); font-weight: 600; font-variant-numeric: tabular-nums; }
-.account-balance.is-negative { color: var(--bad); }
 .account-row.is-excluded .account-balance { color: var(--text-2); font-weight: 500; }
 
 .field-wide { grid-column: span 2; }
@@ -789,6 +820,31 @@ fieldset.field .field-label { margin-bottom: var(--space-1); padding: 0; }
 
 /* Recurring transactions */
 .recurring-list { display: flex; flex-direction: column; }
+
+/* The recurring panel opens and closes from its heading; on the phone it starts closed. */
+.disclosure-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+
+.panel-heading { margin: 0; font-size: inherit; font-weight: inherit; }
+.panel-head:has(+ .recurring-list[hidden]) { margin-bottom: 0; }
+.disclosure-btn .panel-title { display: inline; }
+.disclosure-btn .disclosure-count { color: var(--text-3); font-weight: 500; }
+.disclosure-btn svg { flex: none; color: var(--text-3); transition: transform var(--duration) var(--ease-out); }
+.disclosure-btn[aria-expanded="false"] svg { transform: rotate(-90deg); }
+
+@media (pointer: coarse) {
+  .disclosure-btn { min-height: var(--tap); }
+}
 
 .recurring-row {
   display: grid;

@@ -51,6 +51,12 @@ export const mutations = {
   deleteRule(state, id) {
     state.rules.splice(ruleIndex(state, id), 1);
   },
+  // Undo of a deletion: the rule goes back with its id, at its old place in the order.
+  restoreRule(state, rule, index) {
+    if (state.rules.some((existing) => existing.id === rule.id)) return;
+    const position = Math.max(0, Math.min(index, state.rules.length));
+    state.rules.splice(position, 0, { id: String(rule.id), ...validRule(rule) });
+  },
   moveRule(state, id, direction) {
     const index = ruleIndex(state, id);
     const target = direction === 'up' ? index - 1 : index + 1;

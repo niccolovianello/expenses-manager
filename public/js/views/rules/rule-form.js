@@ -160,7 +160,8 @@ export function mountRuleForm(element, store, actions) {
       pendingFocus = false;
       requestAnimationFrame(() => {
         element.scrollIntoView({ block: 'start' });
-        fields.value.focus({ preventScroll: true });
+        // With the text already filled in, what is left to decide is the category.
+        (draft.value && !draft.category ? fields.category : fields.value).focus({ preventScroll: true });
       });
     }
     syncCategories(state);

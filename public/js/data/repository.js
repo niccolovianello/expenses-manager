@@ -253,6 +253,7 @@ export function createRepository(storage) {
     addRule: (rule) => mutateCategorization('addRule', rule),
     updateRule: (id, rule) => mutateCategorization('updateRule', id, rule),
     deleteRule: (id) => mutateCategorization('deleteRule', id),
+    restoreRule: (rule, index) => mutateCategorization('restoreRule', rule, index),
     moveRule: (id, direction) => mutateCategorization('moveRule', id, direction),
   };
 }

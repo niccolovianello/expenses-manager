@@ -44,10 +44,13 @@
   --good: #0d7a45;
   --bad: #b42828;
   --bad-soft: #fbeaea;
+  --on-bad: #ffffff;
 
   --shadow: 0 1px 2px rgb(20 28 40 / 0.05), 0 1px 3px rgb(20 28 40 / 0.06);
   --shadow-pop: 0 10px 28px rgb(20 28 40 / 0.16), 0 2px 6px rgb(20 28 40 / 0.08);
-  --focus-ring: 0 0 0 3px rgb(29 92 112 / 0.32);
+  --shadow-knob: 0 1px 2px rgb(20 28 40 / 0.25);
+  /* Solid accent ring with a surface gap: at least 3:1 against every background. */
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent);
 
   --tooltip-bg: #15181d;
   --tooltip-text: #f4f5f7;
@@ -63,6 +66,22 @@
   --series-other: #a3a9b2;
   --flow-in: #2f8f83;
   --flow-out: #5b6474;
+
+  /* Account colors (chosen per account); stepped for the dark scheme below. */
+  --account-1: #e0592a;
+  --account-2: #f0904a;
+  --account-3: #ec6a56;
+  --account-4: #e5484d;
+  --account-5: #d67aa4;
+  --account-6: #8e5bd0;
+  --account-7: #2337c6;
+  --account-8: #2a5aa8;
+  --account-9: #2f8f83;
+  --account-10: #5aa84f;
+  --account-11: #8a9f80;
+  --account-12: #b0653a;
+  --account-13: #5d4b47;
+  --account-14: #6b7079;
 
   /* Phone: top bar with brand and actions, section bar at the bottom. */
   --topbar-h: 56px;
@@ -94,9 +113,10 @@
     --good: #4cc38a;
     --bad: #f07a7a;
     --bad-soft: #3a1f21;
+    --on-bad: #2a0c0d;
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3);
     --shadow-pop: 0 10px 28px rgb(0 0 0 / 0.45);
-    --focus-ring: 0 0 0 3px rgb(107 188 204 / 0.4);
+    --shadow-knob: 0 1px 2px rgb(0 0 0 / 0.5);
     --tooltip-bg: #eceef1;
     --tooltip-text: #15181d;
     --series-1: #3987e5;
@@ -109,5 +129,20 @@
     --series-other: #6b7079;
     --flow-in: #4fb3a5;
     --flow-out: #8b94a3;
+    /* The darkest account colors are lifted so the mark stays visible on the dark surface. */
+    --account-1: #d9572b;
+    --account-2: #d9823f;
+    --account-3: #dc6250;
+    --account-4: #d94a4f;
+    --account-5: #c9709a;
+    --account-6: #9467d6;
+    --account-7: #4a5ddb;
+    --account-8: #3e6fbf;
+    --account-9: #2f9487;
+    --account-10: #4f9a46;
+    --account-11: #7f9375;
+    --account-12: #b06d45;
+    --account-13: #85706a;
+    --account-14: #7d828c;
   }
 }

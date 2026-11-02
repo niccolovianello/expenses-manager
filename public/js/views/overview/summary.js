@@ -4,10 +4,10 @@ import { formatCount, formatEUR, formatSignedEUR } from '../../lib/format.js';
 import { relativeChange } from '../../lib/aggregate.js';
 import { watch } from '../../state/store.js';
 import { selectOverview } from '../../state/selectors.js';
-import { delta } from '../../components/common.js';
+import { EARLY_DAYS, delta } from '../../components/common.js';
 import { OVERVIEW_KEYS, isOverviewVisible } from './keys.js';
 
-const elapsedDays = (range) => Math.max(1, diffDays(range.from, minISO(range.to, todayISO())) + 1);
+export const elapsedDays = (range) => Math.max(1, diffDays(range.from, minISO(range.to, todayISO())) + 1);
 
 function figure({ label, value, detail, emphasis = false }) {
   return html`<div class="figure${emphasis ? ' figure-main' : ''}">
@@ -23,21 +23,22 @@ export function mountSummary(element, store) {
     const { range, compare, totals: now, previousTotals: before } = selectOverview(state);
     const change = (key) => (before ? relativeChange(now[key], before[key]) : null);
     const days = elapsedDays(range);
+    const early = days <= EARLY_DAYS && Boolean(compare);
     const previousDaily = compare && before ? before.expense / elapsedDays(compare) : null;
 
     render(element, html`
       <dl class="figures">
-        ${figure({ label: 'Uscite', value: formatEUR(now.expense), detail: delta(change('expense')), emphasis: state.flow === 'expense' })}
-        ${figure({ label: 'Entrate', value: formatEUR(now.income), detail: delta(change('income')), emphasis: state.flow === 'income' })}
+        ${figure({ label: 'Uscite', value: formatEUR(now.expense), detail: delta(change('expense'), { early }), emphasis: state.flow === 'expense' })}
+        ${figure({ label: 'Entrate', value: formatEUR(now.income), detail: delta(change('income'), { early }), emphasis: state.flow === 'income' })}
         ${figure({
           label: 'Saldo',
           value: formatSignedEUR(now.net),
-          detail: delta(before ? now.net - before.net : null, { absolute: true }),
+          detail: delta(before ? now.net - before.net : null, { absolute: true, early }),
         })}
         ${figure({
           label: 'Spesa media al giorno',
           value: formatEUR(now.expense / days),
-          detail: delta(previousDaily ? relativeChange(now.expense / days, previousDaily) : null),
+          detail: delta(previousDaily ? relativeChange(now.expense / days, previousDaily) : null, { early }),
         })}
       </dl>
       <p class="figures-note">

@@ -13,16 +13,33 @@ export function mountRecurringList(element, store, actions) {
   render(element, html`
     <header class="panel-head">
       <div>
-        <h2 class="panel-title">Movimenti ricorrenti</h2>
-        <p class="panel-sub">Ogni ripetizione fino a oggi compare tra i movimenti e aggiorna il saldo del conto.</p>
+        <h2 class="panel-heading">
+          <button type="button" class="disclosure-btn" data-action="toggle-recurring" aria-expanded="true" aria-controls="recurring-body">
+            ${icon('chevron-down', { size: 16 })}<span class="panel-title">Movimenti ricorrenti</span> <span class="disclosure-count" data-ref="count"></span>
+          </button>
+        </h2>
+        <p class="panel-sub" data-ref="sub">Ogni ripetizione fino a oggi è tra i movimenti e aggiorna il saldo.</p>
       </div>
       <button type="button" class="btn btn-secondary btn-sm" data-action="new-recurring">${icon('plus')}Nuovo ricorrente</button>
     </header>
-    <ul class="recurring-list" data-ref="list"></ul>`);
+    <ul class="recurring-list" id="recurring-body" data-ref="list"></ul>`);
 
   const refs = collectRefs(element);
+  // On the phone the movements come first: the panel starts closed, its heading still says how many.
+  let open = !window.matchMedia('(max-width: 860px)').matches;
+  const toggle = element.querySelector('[data-action="toggle-recurring"]');
+  const syncOpen = () => {
+    toggle.setAttribute('aria-expanded', String(open));
+    refs.list.hidden = !open;
+    refs.sub.hidden = !open;
+  };
+  syncOpen();
 
   element.addEventListener('click', (event) => {
+    if (event.target.closest('[data-action="toggle-recurring"]')) {
+      open = !open;
+      return syncOpen();
+    }
     if (event.target.closest('[data-action="new-recurring"]')) return actions.openEntryForm(null, { recurring: true });
     const id = event.target.closest('[data-recurrence]')?.dataset.recurrence;
     const recurrence = store.get().recurrences.find((r) => r.id === id);
@@ -33,6 +50,8 @@ export function mountRecurringList(element, store, actions) {
     element.hidden = !state.recurrences.length;
     if (state.status !== 'ready' || state.route !== 'transactions' || !state.recurrences.length) return;
     const today = todayISO();
+    const active = state.recurrences.filter((r) => nextOccurrence(r, today)).length;
+    refs.count.textContent = `· ${active} ${active === 1 ? 'attivo' : 'attivi'}`;
     const rows = state.recurrences.map((r) => ({ ...r, category: r.sourceCategory, next: nextOccurrence(r, today) })).sort(byNext);
     render(refs.list, rows.map((r) => {
       const when = r.next

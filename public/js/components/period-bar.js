@@ -1,7 +1,8 @@
 import { html, render, collectRefs } from '../lib/html.js';
 import { icon } from '../lib/icons.js';
-import { formatRange } from '../lib/format.js';
-import { GRANULARITIES, PRESETS } from '../lib/periods.js';
+import { formatRange, formatWholePeriod } from '../lib/format.js';
+import { todayISO } from '../lib/dates.js';
+import { GRANULARITIES, PRESETS, wholePeriod } from '../lib/periods.js';
 import { watch } from '../state/store.js';
 import { selectAccounts } from '../state/selectors.js';
 
@@ -48,6 +49,12 @@ export function mountPeriodBar(element, store, actions) {
   const refs = collectRefs(element);
   let renderedAccounts = null;
 
+  // Its height, for the forms that scroll into view below it (scroll-margin-top in views.css):
+  // measured when it resizes and whenever the section changes (it is hidden in some).
+  const syncHeight = () => document.documentElement.style.setProperty('--period-bar-h', `${element.hidden ? 0 : element.offsetHeight}px`);
+  new ResizeObserver(syncHeight).observe(element);
+  watch(store, ['route', 'status'], () => requestAnimationFrame(syncHeight));
+
   const setOpen = (open) => {
     element.classList.toggle('is-open', open);
     refs.toggle.setAttribute('aria-expanded', String(open));
@@ -87,7 +94,14 @@ export function mountPeriodBar(element, store, actions) {
     refs.to.value = period.to;
     refs.granularity.value = state.granularity;
 
-    const name = presetLabel(period.preset);
+    // ‹ › stop at today: there is nothing to see in the future.
+    const atToday = period.to >= todayISO();
+    for (const button of element.querySelectorAll('[data-step="1"]')) {
+      button.disabled = atToday;
+      button.title = atToday ? 'Il periodo arriva già a oggi' : '';
+    }
+
+    const name = presetLabel(period.preset) ?? formatWholePeriod(wholePeriod(period));
     const account = state.account === 'all' ? '' : state.account;
     refs.name.textContent = name ?? formatRange(period);
     refs.dates.textContent = [name ? formatRange(period) : '', account].filter(Boolean).join(' · ');

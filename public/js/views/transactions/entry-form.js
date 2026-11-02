@@ -5,9 +5,18 @@ import { icon } from '../../lib/icons.js';
 import { todayISO } from '../../lib/dates.js';
 import { watch } from '../../state/store.js';
 import { selectCategories } from '../../state/selectors.js';
+import { askInline } from '../../components/confirm.js';
 
 const FIELDS = ['date', 'amount', 'account', 'toAccount', 'category', 'tag', 'comment', 'frequency', 'endDate'];
 const formatAmountInput = (amount) => (amount ? amount.toFixed(2).replace('.', ',') : '');
+
+// The required fields still empty, all at once, so one submit says everything that is missing.
+const REQUIRED_NAMES = { amount: 'importo', account: 'conto', toAccount: 'conto di arrivo', category: 'categoria' };
+function missingFields(input) {
+  const required = input.kind === 'transfer' ? ['amount', 'account', 'toAccount'] : ['amount', 'account', 'category'];
+  return required.filter((name) => !String(input[name] ?? '').trim());
+}
+const listNames = (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} e ${names.at(-1)}` : names[0]);
 
 // Form to enter or edit a transaction by hand, once or repeating from a base date. It stays open after
 // saving a new one-off transaction, with kind, date, account and category ready for the next one.
@@ -90,18 +99,22 @@ export function mountEntryForm(element, store, actions) {
     render(refs.categories, categories.map((name) => html`<option value="${name}"></option>`));
   }
 
-  // The error appears under the field to fix, which is marked and focused.
-  function showError(message, field = null) {
+  // The error appears under the field to fix, which is marked and focused. With several fields
+  // (`also`), all of them are marked and the message, under the first one, names each.
+  function showError(message, field = null, also = []) {
     for (const input of refs.form.querySelectorAll('[aria-invalid]')) {
       input.removeAttribute('aria-invalid');
       input.removeAttribute('aria-describedby');
     }
     refs.error.textContent = message ?? '';
     refs.error.hidden = !message;
-    const input = message && field && (fields[field] instanceof HTMLInputElement || fields[field] instanceof HTMLSelectElement) ? fields[field] : null;
+    const isField = (name) => fields[name] instanceof HTMLInputElement || fields[name] instanceof HTMLSelectElement;
+    const input = message && field && isField(field) ? fields[field] : null;
     if (!input) return refs.actions.before(refs.error);
-    input.setAttribute('aria-invalid', 'true');
-    input.setAttribute('aria-describedby', 'entry-error');
+    for (const name of [field, ...also].filter(isField)) {
+      fields[name].setAttribute('aria-invalid', 'true');
+      fields[name].setAttribute('aria-describedby', 'entry-error');
+    }
     input.closest('.field').append(refs.error);
     input.focus();
   }
@@ -125,8 +138,21 @@ export function mountEntryForm(element, store, actions) {
     refs.remove.hidden = !editingId;
     showError(null);
     setKind(values.kind ?? 'expense');
+    snapshot = JSON.stringify(readForm());
     element.hidden = false;
     pendingFocus = true;
+  }
+
+  // What the form held when it opened: Escape asks before throwing away anything typed since.
+  let snapshot = '';
+  const isDirty = () => !element.hidden && JSON.stringify(readForm()) !== snapshot;
+  let asking = false;
+  async function ask(options) {
+    if (asking) return false;
+    asking = true;
+    const answer = await askInline(refs.actions, options);
+    asking = false;
+    return answer;
   }
 
   // The form also opens from other sections: it is focused once the view is visible.
@@ -141,6 +167,7 @@ export function mountEntryForm(element, store, actions) {
   }
 
   function close() {
+    element.querySelector('.confirm-strip [data-answer="no"]')?.click();
     element.hidden = true;
     editingId = null;
     editing = null;
@@ -156,26 +183,37 @@ export function mountEntryForm(element, store, actions) {
   refs.cancel.addEventListener('click', close);
   refs.form.addEventListener('input', () => showError(null));
   refs.frequency.addEventListener('change', syncFrequency);
-  refs.form.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') close();
+  refs.form.addEventListener('keydown', async (event) => {
+    if (event.key !== 'Escape' || event.defaultPrevented || asking) return;
+    if (!isDirty()) return close();
+    const discard = await ask({ message: 'Chiudere senza salvare?', detail: 'Quello che hai scritto andrà perso.', confirmLabel: 'Chiudi senza salvare', danger: true });
+    if (discard) close();
   });
 
   refs.remove.addEventListener('click', async () => {
     if (!editingId) return;
     if (editing === 'recurrence') {
-      const question = 'Eliminare questo movimento ricorrente? Spariscono anche tutte le volte già passate: '
-        + 'per fermarlo e tenerne lo storico, imposta invece una data “Fino al”.';
-      if (window.confirm(question) && await actions.deleteRecurrence(editingId)) close();
+      const confirmed = await ask({
+        message: 'Eliminare questo movimento ricorrente?',
+        detail: 'Spariscono anche tutte le volte già passate. Per fermarlo e tenerne lo storico, imposta invece una data “Fino al”.',
+        confirmLabel: 'Elimina',
+        danger: true,
+      });
+      if (confirmed && await actions.deleteRecurrence(editingId)) close();
       return;
     }
-    if (!window.confirm('Eliminare questo movimento inserito a mano?')) return;
-    if (await actions.deleteEntry(editingId)) close();
+    const confirmed = await ask({ message: 'Eliminare questo movimento inserito a mano?', confirmLabel: 'Elimina', danger: true });
+    if (confirmed && await actions.deleteEntry(editingId)) close();
   });
 
   refs.form.addEventListener('submit', async (event) => {
     event.preventDefault();
     if (saving) return;
     const input = readForm();
+    const missing = missingFields(input);
+    if (missing.length > 1) {
+      return showError(`Mancano ${listNames(missing.map((name) => REQUIRED_NAMES[name]))}`, missing[0], missing.slice(1));
+    }
     const recurring = Boolean(input.frequency);
     const { error, field } = recurring ? normalizeRecurrence(input) : normalizeEntry(input);
     if (error) return showError(error, field);
@@ -190,6 +228,7 @@ export function mountEntryForm(element, store, actions) {
     if (editingId || recurring) return close();
     // Ready for the next one: only amount and details are cleared.
     for (const name of ['amount', 'tag', 'comment']) fields[name].value = '';
+    snapshot = JSON.stringify(readForm());
     fields.amount.focus();
   });
 

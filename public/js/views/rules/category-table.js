@@ -1,6 +1,8 @@
 import { RULE_KINDS } from '../../domain/categorize.js';
 import { html, render } from '../../lib/html.js';
-import { formatCount, formatEUR } from '../../lib/format.js';
+import { formatCount, formatEUR, formatRange } from '../../lib/format.js';
+import { PRESETS } from '../../lib/periods.js';
+import { showToast } from '../../components/toast.js';
 import { watch } from '../../state/store.js';
 import { selectCategorized, selectColorMaps } from '../../state/selectors.js';
 import { swatch } from '../../components/common.js';
@@ -29,8 +31,15 @@ export function mountCategoryTable(element, store, actions) {
     }
     const row = event.target.closest('[data-category]');
     if (row) {
+      // The table covers all history, so the movements open on "Tutto" too: said, and undoable.
+      const previous = store.get().period;
       actions.setPreset('all');
       actions.showTransactions({ kind, category: row.dataset.category });
+      if (previous.preset !== 'all') {
+        showToast('Periodo: tutto lo storico, come nella tabella delle categorie', {
+          action: { label: `Torna a ${PRESETS.find((p) => p.id === previous.preset)?.label ?? formatRange(previous)}`, run: () => actions.restorePeriod(previous) },
+        });
+      }
     }
   });
 

@@ -51,13 +51,13 @@ export function mountRuleList(element, store, actions) {
             </div>
             <div class="rule-actions">
               <label class="switch" title="${rule.enabled ? 'Sospendi' : 'Attiva'}">
-                <input type="checkbox" data-action="toggle" ${rule.enabled ? 'checked' : ''} aria-label="Regola attiva">
+                <input type="checkbox" data-action="toggle" ${rule.enabled ? 'checked' : ''} aria-label="Regola attiva: ${describeRule(rule)} → ${rule.category}">
                 <span class="switch-track" aria-hidden="true"></span>
               </label>
-              <button type="button" class="icon-btn" data-action="up" aria-label="Sposta su" ${index === 0 ? 'disabled' : ''}>${icon('chevron-up')}</button>
-              <button type="button" class="icon-btn" data-action="down" aria-label="Sposta giù" ${index === rules.length - 1 ? 'disabled' : ''}>${icon('chevron-down')}</button>
-              <button type="button" class="icon-btn" data-action="edit" aria-label="Modifica regola">${icon('pencil')}</button>
-              <button type="button" class="icon-btn icon-btn-danger" data-action="delete" aria-label="Elimina regola">${icon('trash')}</button>
+              <button type="button" class="icon-btn" data-action="up" aria-label="Sposta su: ${describeRule(rule)}" ${index === 0 ? 'disabled' : ''}>${icon('chevron-up')}</button>
+              <button type="button" class="icon-btn" data-action="down" aria-label="Sposta giù: ${describeRule(rule)}" ${index === rules.length - 1 ? 'disabled' : ''}>${icon('chevron-down')}</button>
+              <button type="button" class="icon-btn" data-action="edit" aria-label="Modifica regola: ${describeRule(rule)}">${icon('pencil')}</button>
+              <button type="button" class="icon-btn icon-btn-danger" data-action="delete" aria-label="Elimina regola: ${describeRule(rule)}" title="Elimina (puoi annullare)">${icon('trash')}</button>
             </div>
           </li>`)}</ol>`
         : emptyState({

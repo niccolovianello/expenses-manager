@@ -13,9 +13,12 @@ function parseHash(hash) {
   return { route, params: new URLSearchParams(query) };
 }
 
+// Only the sections that show a period carry it in the address.
+export const ROUTES_WITH_PERIOD = ['overview', 'transactions'];
+
 export function hashFor(route, { period, focusCategory } = {}) {
   const params = new URLSearchParams();
-  if (period) {
+  if (period && ROUTES_WITH_PERIOD.includes(route)) {
     if (period.preset === 'custom') {
       params.set('dal', period.from);
       params.set('al', period.to);

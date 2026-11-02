@@ -1,12 +1,13 @@
 import { html, render, collectRefs } from '../../lib/html.js';
 import { icon } from '../../lib/icons.js';
 import { groupTotals, relativeChange } from '../../lib/aggregate.js';
-import { formatEUR, formatPercent } from '../../lib/format.js';
+import { formatEUR, formatPercent, formatSignedPercent } from '../../lib/format.js';
 import { watch } from '../../state/store.js';
 import { selectColorMaps, selectOverview } from '../../state/selectors.js';
 import { createRingChart } from '../../charts/ring-chart.js';
 import { OTHER_COLOR, OTHER_LABEL } from '../../charts/palette.js';
-import { delta, emptyState } from '../../components/common.js';
+import { EARLY_DAYS, delta, emptyState } from '../../components/common.js';
+import { elapsedDays } from './summary.js';
 import { FLOW_LABELS, OVERVIEW_KEYS, isOverviewVisible } from './keys.js';
 
 const COLLAPSED_ROWS = 8;
@@ -14,9 +15,18 @@ const NO_DESCRIPTION = 'Senza descrizione';
 const detailKey = (tx) => tx.tag || tx.comment || NO_DESCRIPTION;
 
 // Inside a category every detail shares its color: in the ring the first ones get lighter shades
-// of it, the rest are grouped into a single gray slice.
-const DETAIL_SHADES = [1, 0.8, 0.64, 0.5, 0.38, 0.28];
+// of it, far enough apart to tell them apart, the rest are grouped into a single gray slice.
+const DETAIL_SHADES = [1, 0.66, 0.4];
 const OTHER_DETAILS_LABEL = 'Altre voci';
+
+// The chosen view (list or ring) is remembered in this browser.
+const VIEW_KEY = 'spese.categoryView';
+const readView = () => {
+  try { return localStorage.getItem(VIEW_KEY) === 'ring' ? 'ring' : 'list'; } catch { return 'list'; }
+};
+const saveView = (value) => {
+  try { localStorage.setItem(VIEW_KEY, value); } catch { /* private mode: the choice lasts until reload */ }
+};
 
 const VIEWS = [
   { id: 'list', label: 'Elenco', icon: 'list' },
@@ -58,14 +68,20 @@ function slices(items, otherLabel) {
   return result;
 }
 
-function row(item, attribute, { compact }) {
+// One readable sentence for screen readers instead of the row's run-on text.
+function rowLabel(item) {
+  const change = item.change === null || !Number.isFinite(item.change) ? '' : `, ${formatSignedPercent(item.change)} rispetto al periodo precedente`;
+  return `${item.key}: ${formatEUR(item.total)}, ${formatPercent(item.share)} del totale, ${item.count} movimenti${change}`;
+}
+
+function row(item, attribute, { compact, early }) {
   return html`<li>
-    <button type="button" class="rank-row" ${attribute}="${item.key}">
+    <button type="button" class="rank-row" ${attribute}="${item.key}" aria-label="${rowLabel(early ? { ...item, change: null } : item)}">
       <span class="rank-name"><span class="swatch" style="--swatch: ${cssColor(item)}" aria-hidden="true"></span><span class="truncate">${item.key}</span></span>
       <span class="rank-amount num">${formatEUR(item.total)}</span>
       ${compact ? '' : html`<span class="rank-bar" aria-hidden="true"><span style="width: ${item.width.toFixed(1)}%; --swatch: ${cssColor(item)}"></span></span>`}
       <span class="rank-meta"><span class="num">${formatPercent(item.share)}</span> · ${item.count} mov.</span>
-      <span class="rank-delta">${item.change === null ? '' : delta(item.change, { reference: 'prec.' })}</span>
+      <span class="rank-delta">${item.change === null || early ? '' : delta(item.change, { reference: 'prec.' })}</span>
     </button>
   </li>`;
 }
@@ -89,7 +105,9 @@ export function mountCategoryPanel(element, store, actions) {
 
   const refs = collectRefs(element);
   let expanded = false;
-  let view = 'list';
+  let view = readView();
+  // After drilling in or out the panel is re-rendered: focus goes to its new heading control.
+  let focusAfterPaint = false;
   let chart = null;
 
   const openDetail = (key) => {
@@ -103,13 +121,20 @@ export function mountCategoryPanel(element, store, actions) {
     const viewButton = target.closest('[data-view]');
     if (viewButton) {
       view = viewButton.dataset.view;
+      saveView(view);
       return paint(store.get());
     }
     const category = target.closest('[data-category]');
-    if (category) return actions.focusCategory(category.dataset.category);
+    if (category) {
+      focusAfterPaint = true;
+      return actions.focusCategory(category.dataset.category);
+    }
     const detail = target.closest('[data-detail]');
     if (detail) return openDetail(detail.dataset.detail);
-    if (target.closest('[data-action="back"]')) return actions.focusCategory(null);
+    if (target.closest('[data-action="back"]')) {
+      focusAfterPaint = true;
+      return actions.focusCategory(null);
+    }
     if (target.closest('[data-action="expand"]')) {
       expanded = !expanded;
       paint(store.get());
@@ -119,7 +144,8 @@ export function mountCategoryPanel(element, store, actions) {
 
   function paint(state) {
     if (!isOverviewVisible(state)) return;
-    const { flowTransactions, previousFlowTransactions, compare } = selectOverview(state);
+    const { range, flowTransactions, previousFlowTransactions, compare } = selectOverview(state);
+    const early = Boolean(compare) && elapsedDays(range) <= EARLY_DAYS;
     const flowLabel = FLOW_LABELS[state.flow];
     const focus = state.focusCategory;
     const colors = selectColorMaps(state)[state.flow];
@@ -165,13 +191,19 @@ export function mountCategoryPanel(element, store, actions) {
 
     const attribute = focus ? 'data-detail' : 'data-category';
     render(refs.list, items.length
-      ? html`<ol class="rank-list${ring ? ' rank-list-compact' : ''}">${visible.map((item) => row(item, attribute, { compact: ring }))}</ol>
+      ? html`<ol class="rank-list${ring ? ' rank-list-compact' : ''}">${visible.map((item) => row(item, attribute, { compact: ring, early }))}</ol>
         ${items.length > COLLAPSED_ROWS
           ? html`<button type="button" class="link-btn panel-more" data-action="expand">
               ${icon(expanded ? 'chevron-up' : 'chevron-down', { size: 14 })}${expanded ? 'Mostra meno' : `Mostra tutte (${items.length})`}
             </button>`
           : ''}`
       : emptyState({ title: flowLabel.empty, actionLabel: 'Mostra tutto', action: 'all' }));
+
+    if (focusAfterPaint) {
+      focusAfterPaint = false;
+      const target = focus ? refs.heading.querySelector('[data-action="back"]') : refs.list.querySelector('.rank-row');
+      target?.focus({ preventScroll: true });
+    }
   }
 
   watch(store, OVERVIEW_KEYS, (state) => {

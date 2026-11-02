@@ -69,6 +69,38 @@ export function shiftRange(range, direction) {
 
 export const comparisonRange = (period) => (period.preset === 'all' ? null : shiftRange(period, -1));
 
+// ‹ › move to the adjacent whole period: from "Questo mese" (1–2 Nov) back to all of October,
+// from "Quest'anno" to the whole previous year. Never past today; null when there is nothing ahead.
+// (The comparison instead keeps the same stretch of the previous period: see shiftRange.)
+export function stepRange(range, direction, today) {
+  if (direction > 0 && range.to >= today) return null;
+  const months = alignedMonths(range);
+  let next;
+  if (months) {
+    const from = addMonths(range.from, direction * months);
+    next = { from, to: endOfMonth(addMonths(from, months - 1)) };
+  } else {
+    next = shiftRange(range, direction);
+  }
+  if (next.from > today) return null;
+  return { from: next.from, to: minISO(next.to, today) };
+}
+
+// The preset whose range is exactly this one, so a stepped period keeps a familiar name.
+export function matchingPreset(range, today) {
+  return PRESETS.find((preset) => preset.id !== 'all'
+    && ['from', 'to'].every((key) => preset.range(today)[key] === range[key]))?.id ?? null;
+}
+
+// A name for a custom range that is a whole month or a whole year ("Ottobre 2026", "2025"), or null.
+export function wholePeriod(range) {
+  if (range.from !== startOfMonth(range.from) || range.to !== endOfMonth(range.to)) return null;
+  const months = monthsBetween(range.from, range.to) + 1;
+  if (months === 1) return { unit: 'month', key: range.from };
+  if (months === 12 && range.from === startOfYear(range.from)) return { unit: 'year', key: range.from };
+  return null;
+}
+
 export function bucketStart(iso, granularity) {
   switch (granularity) {
     case 'day': return iso;

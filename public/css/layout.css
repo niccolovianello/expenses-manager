@@ -55,6 +55,10 @@
   box-shadow: var(--shadow);
 }
 
+/* The current section's own shadow must not hide the keyboard focus. */
+.nav-link:focus-visible,
+.nav-link[aria-current="page"]:focus-visible { box-shadow: var(--focus-ring); }
+
 .rail-foot {
   margin-top: auto;
   padding: 0 var(--space-3);
@@ -168,7 +172,7 @@
   }
 
   .rail-foot { display: none; }
-  .brand { padding: 0; }
+  .brand { min-height: var(--tap); padding: 0; }
 
   /* Bottom, within thumb reach: the four sections with "Nuovo" in the middle. */
   .nav {
@@ -209,6 +213,8 @@
     box-shadow: none;
     color: var(--accent-text);
   }
+
+  .nav-link[aria-current="page"]:focus-visible { box-shadow: var(--focus-ring); }
 
   .nav-link:active,
   .nav-add:active { background: color-mix(in srgb, var(--text) 6%, transparent); }

@@ -20,6 +20,7 @@ colors:
   good: "#0d7a45"
   bad: "#b42828"
   bad-soft: "#fbeaea"
+  on-bad: "#ffffff"
   tooltip-bg: "#15181d"
   tooltip-text: "#f4f5f7"
   series-1: "#2a78d6"
@@ -32,6 +33,20 @@ colors:
   series-other: "#a3a9b2"
   flow-in: "#2f8f83"
   flow-out: "#5b6474"
+  account-1: "#e0592a"
+  account-2: "#f0904a"
+  account-3: "#ec6a56"
+  account-4: "#e5484d"
+  account-5: "#d67aa4"
+  account-6: "#8e5bd0"
+  account-7: "#2337c6"
+  account-8: "#2a5aa8"
+  account-9: "#2f8f83"
+  account-10: "#5aa84f"
+  account-11: "#8a9f80"
+  account-12: "#b0653a"
+  account-13: "#5d4b47"
+  account-14: "#6b7079"
 typography:
   headline:
     fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif"
@@ -114,6 +129,8 @@ components:
     rounded: "{rounded.s}"
     padding: "0 12px"
     height: "28px"
+  segmented-button-selected-touch:
+    height: "44px"
   input:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.text}"
@@ -176,12 +193,15 @@ A cool, nearly colourless neutral frame that lets one teal-blue accent and a fix
 
 ### Semantic
 - **Ledger Green** (good): income amounts in transaction lists.
-- **Alarm Red** (bad / bad-soft): error text, error toast, destructive icon-button hover. Not used for expense amounts; expenses are plain ink with a minus sign.
+- **Alarm Red** (bad / bad-soft / on-bad): error text, error toast, destructive icon-button hover, the confirm button of a destructive inline confirmation. Not used for expense amounts or negative balances; both are plain ink with a true minus sign (−).
 
 ### Data Series
 - **Category slots** (series-1 to series-7): blue, orange, green, amber, pink, deep green, violet, assigned in fixed order to the seven heaviest expense (or income) categories across all data. Each has a stepped dark-mode value.
 - **Altre categorie** (series-other): neutral grey for everything outside the seven slots.
 - **Flow pair** (flow-in teal, flow-out slate): the income-versus-spending chart. Deliberately not green/red.
+
+### Account Colours
+- **Account marks** (account-1 to account-14): Arancio, Albicocca, Corallo, Rosso, Rosa, Viola, Indaco, Blu, Verde acqua, Verde, Salvia, Terracotta, Moka, Grigio. The owner picks one per account; it fills the round mark behind the account's icon in Conti and nowhere else. The stored value is the light hex; the page reads it through `--account-N`, whose dark values lift the darkest ones (Indaco, Blu, Moka, Grigio) so the mark stays visible. The picker announces each colour by name.
 
 ### Named Rules
 **The Bound Colour Rule.** A category's colour is assigned from its all-time rank and never changes with the selected period. Charts, legends, swatches and rank bars all read the same `--series-*` variable.
@@ -197,8 +217,8 @@ A cool, nearly colourless neutral frame that lets one teal-blue accent and a fix
 **Character:** A single native sans, tuned with intermediate weights (450, 550, 650) so dense tables stay legible and headings stay quiet. There is no display face; the largest type is the view title.
 
 ### Hierarchy
-- **Headline** (650, 1.75rem, 1.2, -0.015em): view titles (Panoramica, Movimenti, Categorie e regole). Drops to 1.5rem under 860px.
-- **Figure** (650, 1.5rem, 1.25, -0.01em, tabular): summary totals. Drops to 1.25rem under 480px.
+- **Headline** (650, 1.75rem, 1.2, -0.015em): view titles (Panoramica, Movimenti, Conti, Categorie e regole). Drops to 1.5rem under 860px.
+- **Figure** (650, 1.5rem, 1.25, -0.01em, tabular): summary totals. With four columns it scales with the strip's width (container units, 1rem to 1.5rem) so a long total never spills out of its column; drops to 1.25rem under 480px.
 - **Title** (650, 1rem, 1.3): panel titles, brand name.
 - **Body** (400, 0.875rem, 1.45): default text, table cells, inputs. Empty-state copy is capped at 52ch.
 - **Label** (550, 0.8125rem): field labels, figure labels, buttons, segmented options, legends, deltas.
@@ -219,11 +239,11 @@ Spacing follows a 4px base scale (4, 8, 12, 16, 20, 24, 32, 40). Panels pad 20px
 
 Responsive steps:
 - **1000px:** summary figures go from 4 to 2 columns.
-- **860px (phone):** the rail becomes a 56px top bar (brand, import, lock) and the sections move to a bottom tab bar (Panoramica · Movimenti · Nuovo · Regole) above the safe-area inset. The period bar shrinks to one sticky row, ‹ period name and dates ›, that opens in place onto presets, dates, grouping and account. The app opens on "Questo mese"; on the overview, categories come before the charts.
+- **860px (phone):** the rail becomes a 56px top bar (brand, import, lock) and the sections move to a bottom tab bar (Panoramica · Movimenti · Nuovo · Conti · Regole) above the safe-area inset. The period bar shrinks to one sticky row, ‹ period name and dates ›, that opens in place onto presets, dates, grouping and account. The app opens on "Questo mese"; on the overview, categories come before the charts; on Movimenti the recurring panel starts closed so the movements come first.
 - **640px:** transaction tables become stacked rows. Sorted by date they are grouped under day headers, two lines per row (description and amount, then category and account); tapping a row opens it to the category menu and its actions. Rule fields go single-column.
 - **480px:** summary figures shrink with the viewport and never wrap; the "Ricategorizzati" column hides.
 
-Touch devices (`pointer: coarse`) get 44px targets (segments and chips 40px) and 16px field text so iOS never zooms on focus; precise pointers keep the compact desktop sizes. Row hover tints apply only where hover exists.
+Touch devices (`pointer: coarse`) get 44px targets (chips 40px; the switch gains a 44px hit area) and 16px field text so iOS never zooms on focus; precise pointers keep the compact desktop sizes. Row hover tints apply only where hover exists.
 
 ## Elevation & Depth
 
@@ -232,7 +252,8 @@ Mostly flat with tonal layering: rail sits below the ground, panels sit on it as
 ### Shadow Vocabulary
 - **Resting** (`0 1px 2px rgb(20 28 40 / 0.05), 0 1px 3px rgb(20 28 40 / 0.06)`): panels, active nav pill, selected segment.
 - **Pop** (`0 10px 28px rgb(20 28 40 / 0.16), 0 2px 6px rgb(20 28 40 / 0.08)`): toast and anything overlaying content.
-- **Focus ring** (`0 0 0 3px rgb(29 92 112 / 0.32)`): all keyboard focus, replacing outlines.
+- **Focus ring** (`0 0 0 2px var(--surface), 0 0 0 4px var(--accent)`): all keyboard focus, replacing outlines. A solid accent ring behind a surface gap, at least 3:1 on every ground in both schemes; the current nav link shows it too.
+- **Knob** (`0 1px 2px rgb(20 28 40 / 0.25)`): the switch thumb only.
 
 Dark mode flattens both shadows to black-alpha (0.3 and 0.45) and depth is carried mainly by the surface steps.
 
@@ -241,7 +262,7 @@ Dark mode flattens both shadows to black-alpha (0.3 and 0.45) and depth is carri
 
 ## Shapes
 
-Soft, consistent corners at three steps: 6px inside compact controls (segment buttons), 8px for interactive controls (buttons, inputs, nav links, rank rows, toast, chart tooltip), 12px for panels and containers. The segmented trough uses 10px (8 + 2) to nest its 6px buttons. Pills only for the switch track. Chart bars round only their data end (4px top), stacked segments are separated by a 2px surface-coloured gap, and swatches are 10px squares with 3px corners. Strokes are 1px hairlines throughout.
+Soft, consistent corners at three steps: 6px inside compact controls (segment buttons), 8px for interactive controls (buttons, inputs, nav links, rank rows, toast, chart tooltip), 12px for panels and containers. The segmented trough uses 10px (8 + 2) to nest its 6px buttons. Pills (999px) for the switch track, chips, rank bars and colour swatches. Chart bars round only their data end (4px top), stacked segments are separated by a 2px surface-coloured gap, and swatches are 10px dots. Strokes are 1px hairlines throughout.
 
 ## Components
 
@@ -261,7 +282,7 @@ The period presets and the Uscite/Entrate switch. Surface-2 trough with hairline
 ### Inputs / Fields
 - **Style:** surface fill, border-strong 1px, 8px corners, 34px tall (compact variant 28px, 13px text).
 - **Hover:** border darkens to text-3. **Focus:** border becomes accent plus the focus ring.
-- **Labels:** 13px/550 text-2, above or inline. **Error:** 13px/550 in bad, placed under the field it concerns; that field gets a bad border, `aria-invalid` and focus.
+- **Labels:** 13px/550 text-2, above or inline. **Error:** 13px/550 in bad, placed under the field it concerns; that field gets a bad border, `aria-invalid` and focus. When several required fields are empty, one message names them all ("Mancano importo, conto e categoria") and every one is marked.
 - **Check / Switch:** native checkbox tinted with accent; switch is a 32x18 pill, border-strong off, accent on.
 
 ### Cards / Containers
@@ -269,9 +290,12 @@ The period presets and the Uscite/Entrate switch. Surface-2 trough with hairline
 - **Summary strip:** one panel, four figures divided by vertical hairlines (not four cards). The main figure's label is coloured accent-text.
 
 ### Navigation
-Sidebar rail on rail grey. Links are icon plus label, 500 weight, text-2; hover is a 6% ink wash; the current page is a white pill with resting shadow and accent-text. Under 860px it becomes a bottom tab bar on translucent rail grey with a hairline top border: 20px icon over a 12px short label, text-3, the current section in accent-text without a pill. "Nuovo" sits third as a 40x24 accent capsule.
+Four sections: Panoramica, Movimenti, Conti, Categorie e regole. Sidebar rail on rail grey. Links are icon plus label, 500 weight, text-2; hover is a 6% ink wash; the current page is a white pill with resting shadow and accent-text. Under 860px it becomes a bottom tab bar on translucent rail grey with a hairline top border: 20px icon over a 12px short label, text-3, the current section in accent-text without a pill. "Nuovo" sits third as a 40x24 accent capsule.
 
-The URL carries the route, the period and the explored category (`#/panoramica?p=12m&cat=Casa`). Zooming from a chart and drilling into a category add a history entry, so Back undoes them.
+The URL carries the route, the period and the explored category (`#/panoramica?p=12m&cat=Casa`); sections without a period (Conti, Categorie e regole) carry only the route. Zooming from a chart and drilling into a category add a history entry, so Back undoes them.
+
+### Period Bar
+Presets, date range with ‹ ›, grouping and account. ‹ › move to the adjacent whole period: from "Questo mese" to all of the previous month, from "Quest'anno" to the whole previous year. › is disabled once the period reaches today. A stepped period takes the name of the preset it matches ("Mese scorso") or of its month or year ("Settembre 2026"). The period comparison keeps the like-for-like stretch (1–2 Nov against 1–2 Oct) and is withheld for the first six days ("Confronto dal 7° giorno"), when it would be noise.
 
 ### Filter Chips
 Pills under the overview title for anything narrowing the view beyond the period: "← Torna a 12 mesi" after a chart zoom (surface with border-strong), "Categoria: Casa ✕" while drilling (accent-soft, accent-text). One tap removes them.
@@ -280,13 +304,24 @@ Pills under the overview title for anything narrowing the view beyond the period
 Hairline row separators, 8px by 12px cells, sticky header in 12px/600 text-3 with sentence case. Rows hover to surface-2; sortable headers turn accent-text when active. Row actions reveal on hover/focus on pointer devices and stay visible on touch.
 
 ### Ranked Category List (signature)
-Each row: swatch and name (550), amount (600, tabular) right, then a 6px bar in the category colour over a grid-coloured track, then metadata (share, count) and a neutral delta. Whole row is a button with 8px corners and surface-2 hover, drilling into transactions.
+Each row: swatch and name (550), amount (600, tabular) right, then a 6px bar in the category colour over a grid-coloured track, then metadata (share, count) and a neutral delta. Whole row is a button with 8px corners and surface-2 hover, drilling into transactions; its accessible name is one sentence (name, amount, share, count, change).
+
+A two-button icon toggle (Elenco / Anello) switches the panel to a ring view: a doughnut of the same shares with the total in the centre and the list compacted below it (no bars). The choice is remembered in the browser. Inside a category, the ring shows the top three details in three well-separated tints of the category colour (100%, 66%, 40%) and the rest as one grey slice. On touch, the first tap reads a slice and the second drills in, like the bars.
 
 ### Stacked Bar Chart (signature)
 Chart.js themed entirely from CSS variables (font, text-2 ticks, grid lines, inverse tooltip with 8px corners). No legend inside the canvas; an HTML legend of swatches sits below. Max bar thickness 36px, y-axis capped at five ticks with compact euro labels, x gridlines off. Each chart offers a table alternative. On touch, the first tap on a bar shows its tooltip and a second tap on the same bar zooms the period, so reading a value never changes the period.
 
 ### Toast
-Bottom-centred (above the tab bar on phone), inverse tooltip colours, 8px corners, pop shadow; slides up 8px and fades in over 180ms. Error tone uses bad fill.
+Bottom-centred (above the tab bar on phone), inverse tooltip colours, 8px corners, pop shadow; slides up 8px and fades in over 180ms. Error tone uses bad fill. A toast can carry one action button on the right ("Annulla" after deleting a rule, "Crea regola" after moving a movement to another category, "Torna a 12 mesi" after a jump to all history); it then stays 6 seconds and pauses while hovered or focused.
+
+### Inline Confirmation
+Destructive or money-changing steps confirm inside the form, in place of its buttons, never in the browser's dialog: a surface-2 strip with border-strong, a bold question, an optional text-2 detail, then the confirm button (bad fill for deletions, primary for a new balance) and "Annulla", which has focus. Escape answers no. Used for deleting a movement, a recurring movement or an account; for a new account balance ("Saldo da 84,20 € a 100,00 €", with the difference); and when Escape would close a form with unsaved changes.
+
+### Accounts (Conti)
+One panel: "Totale disponibile" as a figure, then one row per account (round colour mark with the account icon, name, balance right-aligned and tabular). Excluded accounts show an eye-off flag and a lighter balance. Tapping a row opens the account form above the list.
+
+### Recurring Movements
+A panel on Movimenti, above the filters: one row per recurring movement (repeat mark, description, frequency and next date, account, signed amount); ended ones in text-3. Its heading is a disclosure button with the count of active ones; the panel starts closed on the phone.
 
 ## Do's and Don'ts
 
@@ -299,11 +334,13 @@ Bottom-centred (above the tab bar on phone), inverse tooltip colours, 8px corner
 - **Do** use 8px corners for controls and 12px for panels; 1px hairlines for every stroke.
 - **Do** use Lucide-style stroked SVG icons inline, one style across the interface.
 - **Do** step every new colour for the dark scheme inside the `prefers-color-scheme: dark` block.
+- **Do** confirm destructive steps inline in the form, and offer "Annulla" in the toast where a deletion can be undone.
 
 ### Don't:
 - **Don't** colour deltas red or green; the arrow carries direction.
 - **Don't** use the accent as a chart series, decorative fill or heading colour.
 - **Don't** build rows of identical KPI tiles.
-- **Don't** add decorative or gimmick chart types (gauges, 3D); bars and ranked lists carry the data.
+- **Don't** add decorative or gimmick chart types (gauges, 3D); bars and ranked lists carry the data. The category ring is the one exception, kept as an alternative view of the same ranked list.
+- **Don't** use red for negative balances or `window.confirm` for confirmations.
 - **Don't** introduce a third shadow level or hard offset shadows.
 - **Don't** add a second typeface.

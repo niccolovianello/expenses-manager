@@ -41,9 +41,8 @@ export function mountOverviewHeader(element, store, actions) {
   watch(store, OVERVIEW_KEYS, (state) => {
     if (!isOverviewVisible(state)) return;
     const { range, compare } = selectOverview(state);
-    refs.sub.textContent = compare
-      ? `${formatRange(range)} · confronto con ${formatRange(compare)}`
-      : formatRange(range);
+    // The period itself is already in the period bar: here only what it is compared with.
+    refs.sub.textContent = compare ? `Confronto con ${formatRange(compare)}` : `Tutto lo storico · ${formatRange(range)}`;
     for (const button of element.querySelectorAll('[data-flow]')) {
       button.setAttribute('aria-pressed', String(button.dataset.flow === state.flow));
     }

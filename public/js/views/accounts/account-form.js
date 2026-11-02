@@ -1,4 +1,6 @@
-import { ACCOUNT_COLORS, ACCOUNT_ICONS, normalizeAccount } from '../../domain/accounts.js';
+import { ACCOUNT_COLORS, ACCOUNT_COLOR_NAMES, ACCOUNT_ICONS, accountColor, normalizeAccount } from '../../domain/accounts.js';
+import { formatEUR, formatSignedEUR } from '../../lib/format.js';
+import { askInline } from '../../components/confirm.js';
 import { html, render, collectRefs } from '../../lib/html.js';
 import { icon } from '../../lib/icons.js';
 
@@ -28,8 +30,8 @@ export function mountAccountForm(element, store, actions) {
         </fieldset>
         <fieldset class="field field-full">
           <legend class="field-label">Colore</legend>
-          <div class="picker">${ACCOUNT_COLORS.map((color) => html`<label class="picker-option">
-            <input type="radio" name="color" value="${color}" class="sr-only"><span class="picker-color" style="--account-color: ${color}"></span><span class="sr-only">${color}</span>
+          <div class="picker">${ACCOUNT_COLORS.map((color, index) => html`<label class="picker-option" title="${ACCOUNT_COLOR_NAMES[index]}">
+            <input type="radio" name="color" value="${color}" class="sr-only"><span class="picker-color" style="--account-color: ${accountColor(color)}"></span><span class="sr-only">${ACCOUNT_COLOR_NAMES[index]}</span>
           </label>`)}</div>
         </fieldset>
       </div>
@@ -78,6 +80,7 @@ export function mountAccountForm(element, store, actions) {
     render(refs.submit, account ? html`Salva modifiche` : html`${icon('plus')}Aggiungi`);
     refs.remove.hidden = !account;
     showError(null);
+    snapshot = JSON.stringify(readFields());
     element.hidden = false;
     requestAnimationFrame(() => {
       element.scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -86,9 +89,26 @@ export function mountAccountForm(element, store, actions) {
   }
 
   function close() {
+    element.querySelector('.confirm-strip [data-answer="no"]')?.click();
     element.hidden = true;
     editing = null;
   }
+
+  // What the form held when it opened: Escape asks before throwing away anything typed since.
+  let snapshot = '';
+  const isDirty = () => !element.hidden && JSON.stringify(readFields()) !== snapshot;
+  let asking = false;
+  async function ask(options) {
+    if (asking) return false;
+    asking = true;
+    const answer = await askInline(refs.actions, options);
+    asking = false;
+    return answer;
+  }
+
+  const readFields = () => ({
+    name: fields.name.value, balance: fields.balance.value, icon: fields.icon.value, color: fields.color.value, excluded: fields.excluded.checked,
+  });
 
   // An untouched balance is not sent, so editing only the name or the look does not reset it.
   const readForm = () => ({
@@ -102,13 +122,17 @@ export function mountAccountForm(element, store, actions) {
   refs.close.addEventListener('click', close);
   refs.cancel.addEventListener('click', close);
   refs.form.addEventListener('input', () => showError(null));
-  refs.form.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') close();
+  refs.form.addEventListener('keydown', async (event) => {
+    if (event.key !== 'Escape' || asking) return;
+    if (!isDirty()) return close();
+    const discard = await ask({ message: 'Chiudere senza salvare?', detail: 'Le modifiche al conto andranno perse.', confirmLabel: 'Chiudi senza salvare', danger: true });
+    if (discard) close();
   });
 
   refs.remove.addEventListener('click', async () => {
-    if (!editing || !window.confirm(`Eliminare il conto “${editing.name}”? I movimenti già inseriti restano.`)) return;
-    if (await actions.deleteAccount(editing.id)) close();
+    if (!editing) return;
+    const confirmed = await ask({ message: `Eliminare il conto “${editing.name}”?`, detail: 'I movimenti già inseriti restano.', confirmLabel: 'Elimina conto', danger: true });
+    if (confirmed && await actions.deleteAccount(editing.id)) close();
   });
 
   refs.form.addEventListener('submit', async (event) => {
@@ -116,8 +140,18 @@ export function mountAccountForm(element, store, actions) {
     if (saving) return;
     const input = readForm();
     const others = store.get().accounts.filter((other) => other.id !== editing?.id);
-    const { error, field } = normalizeAccount(input, others);
+    const { account, error, field } = normalizeAccount(input, others);
     if (error) return showError(error, field);
+
+    // A new balance replaces the old one: say by how much before it does.
+    if (editing && 'balance' in account && account.balance !== editing.current) {
+      const confirmed = await ask({
+        message: `Saldo da ${formatEUR(editing.current)} a ${formatEUR(account.balance)}`,
+        detail: `Differenza ${formatSignedEUR(account.balance - editing.current)}. Diventa il nuovo punto di partenza del conto.`,
+        confirmLabel: 'Aggiorna saldo',
+      });
+      if (!confirmed) return fields.balance.focus();
+    }
 
     saving = true;
     refs.submit.disabled = true;

@@ -2,13 +2,14 @@ import { todayISO } from '../lib/dates.js';
 import { duplicateKey, entryInput } from '../domain/entries.js';
 import { expandRecurrences, recurrenceInput } from '../domain/recurring.js';
 import { inRange } from '../lib/aggregate.js';
-import { PRESETS, presetRange, shiftRange } from '../lib/periods.js';
+import { PRESETS, matchingPreset, presetRange, stepRange } from '../lib/periods.js';
 import { navigate } from '../router.js';
 import { DEFAULT_TX_FILTERS } from './initial.js';
 import { baselineCategory, selectAccountSummary, selectExtent } from './selectors.js';
 import { loadAccountSeed, loadRecurringSeed } from '../data/local-seed.js';
 import { formatEUR } from '../lib/format.js';
 import { showToast } from '../components/toast.js';
+import { ruleDraftFrom } from '../domain/categorize.js';
 
 // `api` is the data repository (encrypted on Firebase); `lock` ends the session;
 // `markHistory` asks for the next state change to create a history entry.
@@ -36,13 +37,14 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
   }
 
   // Updates the UI immediately, then saves; rolls back if saving fails.
-  async function persistConfig(optimisticConfig, request, successMessage) {
+  // `toastAction`: { label, run } offered next to the success message.
+  async function persistConfig(optimisticConfig, request, successMessage, toastAction = null) {
     const previous = store.get().config;
     if (optimisticConfig) store.set({ config: optimisticConfig });
     try {
       const config = await request();
       store.set({ config });
-      if (successMessage) showToast(successMessage);
+      if (successMessage) showToast(successMessage, { action: toastAction });
       return true;
     } catch (error) {
       store.set({ config: previous });
@@ -105,8 +107,9 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     },
 
     stepPeriod(direction) {
-      const { period } = store.get();
-      setPeriod({ preset: 'custom', ...shiftRange(period, direction) });
+      const today = todayISO();
+      const range = stepRange(store.get().period, direction, today);
+      if (range) setPeriod({ preset: matchingPreset(range, today) ?? 'custom', ...range });
     },
 
     // Zooming from a chart remembers the starting period, so one tap can return to it.
@@ -120,9 +123,12 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
 
     undoZoom() {
       const { zoomFrom } = store.get();
-      if (!zoomFrom) return;
-      if (zoomFrom.preset === 'custom') actions.setCustomRange(zoomFrom.from, zoomFrom.to);
-      else actions.setPreset(zoomFrom.preset);
+      if (zoomFrom) actions.restorePeriod(zoomFrom);
+    },
+
+    restorePeriod(period) {
+      if (period.preset === 'custom') actions.setCustomRange(period.from, period.to);
+      else actions.setPreset(period.preset);
     },
 
     // State read from the hash (opened address or Back): period and explored category.
@@ -270,10 +276,12 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       if (matchesBaseline) delete nextOverrides[tx.id];
       else nextOverrides[tx.id] = category;
       if (matchesBaseline && !overrides[tx.id]) return;
+      // A correction can become a rule right away, so the next ones are already in the right category.
       await persistConfig(
         { ...state.config, overrides: nextOverrides },
         () => (matchesBaseline ? api.clearOverride(tx.id) : api.setOverride(tx.id, category)),
         matchesBaseline ? 'Categoria ripristinata' : `Spostato in “${category}”`,
+        matchesBaseline ? null : { label: 'Crea regola', run: () => actions.draftRule(ruleDraftFrom(tx, category)) },
       );
     },
 
@@ -315,8 +323,12 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
 
     deleteRule(rule) {
       const state = store.get();
+      const index = state.config.rules.findIndex((r) => r.id === rule.id);
       const rules = state.config.rules.filter((r) => r.id !== rule.id);
-      return persistConfig({ ...state.config, rules }, () => api.deleteRule(rule.id), 'Regola eliminata');
+      return persistConfig({ ...state.config, rules }, () => api.deleteRule(rule.id), 'Regola eliminata', {
+        label: 'Annulla',
+        run: () => persistConfig(null, () => api.restoreRule(rule, index), 'Regola ripristinata'),
+      });
     },
 
     refreshTheme: () => store.set({ theme: Date.now() }),

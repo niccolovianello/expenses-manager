@@ -2,6 +2,9 @@ import { html } from '../lib/html.js';
 import { icon } from '../lib/icons.js';
 import { formatCount, formatEUR, formatSignedEUR, formatSignedPercent } from '../lib/format.js';
 
+// Below this many elapsed days a period is too short to compare.
+export const EARLY_DAYS = 6;
+
 export const swatch = (colorVar) => html`<span class="swatch" style="--swatch: var(${colorVar})" aria-hidden="true"></span>`;
 
 export function legend(series) {
@@ -10,7 +13,9 @@ export function legend(series) {
 
 // Change versus the previous period: the arrow gives the direction, the color stays neutral
 // (red and green are reserved for expenses and income). `absolute` shows a difference in euros.
-export function delta(change, { reference = 'periodo prec.', absolute = false } = {}) {
+// `early`: the period has only just started, so a comparison would be noise (+132% over two days).
+export function delta(change, { reference = 'periodo prec.', absolute = false, early = false } = {}) {
+  if (early) return html`<span class="delta delta-none">Confronto dal ${EARLY_DAYS + 1}° giorno</span>`;
   if (change === null || !Number.isFinite(change)) {
     return html`<span class="delta delta-none">Nessun confronto</span>`;
   }

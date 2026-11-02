@@ -2,11 +2,12 @@ import { html, render, collectRefs } from '../../lib/html.js';
 import { icon } from '../../lib/icons.js';
 import { debounce } from '../../lib/memo.js';
 import { totals } from '../../lib/aggregate.js';
-import { formatCount, formatDateLong, formatEUR, formatRange } from '../../lib/format.js';
+import { formatCount, formatDateLong, formatEUR } from '../../lib/format.js';
 import { watch } from '../../state/store.js';
 import { DEFAULT_TX_FILTERS } from '../../state/initial.js';
 import { selectCategories, selectTransactionRows } from '../../state/selectors.js';
 import { emptyState } from '../../components/common.js';
+import { ruleDraftFrom } from '../../domain/categorize.js';
 import { transactionRow } from './row.js';
 import { startNewCategory } from './new-category.js';
 import { mountEntryForm } from './entry-form.js';
@@ -118,10 +119,7 @@ export function mountTransactions(element, store, actions) {
     if (action === 'new-entry') return actions.openEntryForm();
     if (action === 'edit-entry' && tx) return actions.openEntryForm(tx);
     if (action === 'reset' && tx) return actions.resetCategory(tx);
-    if (action === 'rule' && tx) {
-      const field = tx.comment ? 'comment' : tx.tag ? 'tag' : 'account';
-      return actions.draftRule({ kind: tx.kind, field, operator: 'contains', value: tx[field], category: tx.category });
-    }
+    if (action === 'rule' && tx) return actions.draftRule(ruleDraftFrom(tx));
     if (action === 'more') return actions.showMoreTransactions();
     if (target.closest('[data-empty-action="reset"]')) {
       refs.query.value = '';
@@ -157,7 +155,7 @@ export function mountTransactions(element, store, actions) {
     rowsById = new Map(shown.map((tx) => [tx.id, tx]));
     const sum = totals(rows);
 
-    refs.sub.textContent = `${formatCount(rows.length)} movimenti · ${formatRange(state.period)} · uscite ${formatEUR(sum.expense)} · entrate ${formatEUR(sum.income)}`;
+    refs.sub.textContent = `${formatCount(rows.length)} movimenti · uscite ${formatEUR(sum.expense)} · entrate ${formatEUR(sum.income)}`;
 
     if (!rows.length) {
       render(refs.table, emptyState({
@@ -175,6 +173,11 @@ export function mountTransactions(element, store, actions) {
     const grouped = filters.sort.key === 'date';
     const body = shown.map((tx, index) => html`${grouped && tx.date !== shown[index - 1]?.date
       ? html`<tr class="day-row"><th colspan="6" scope="colgroup">${formatDateLong(tx.date)}</th></tr>` : ''}${transactionRow(tx, state, categories, tx.id === openId)}`);
+    // The table is re-rendered (after a category change, for one): focus returns to the same control of the same row.
+    const active = document.activeElement;
+    const keep = refs.table.contains(active) && active.closest('[data-id]')
+      ? { id: active.closest('[data-id]').dataset.id, action: active.dataset.action }
+      : null;
     render(refs.table, html`<table class="data-table tx-table${grouped ? ' is-grouped' : ''}">
       <caption class="sr-only">Movimenti filtrati</caption>
       <thead><tr>
@@ -191,6 +194,11 @@ export function mountTransactions(element, store, actions) {
       </tr></thead>
       <tbody>${body}</tbody>
     </table>`);
+
+    if (keep) {
+      const row = refs.table.querySelector(`tr[data-id="${CSS.escape(keep.id)}"]`);
+      (keep.action && row?.querySelector(`[data-action="${keep.action}"]`) || row?.querySelector('button, select'))?.focus({ preventScroll: true });
+    }
 
     render(refs.foot, html`
       <span class="muted">Mostrati ${formatCount(shown.length)} di ${formatCount(rows.length)}</span>

@@ -29,6 +29,16 @@ export function normalizeCategory(value) {
   return category && category.length <= 60 ? category : null;
 }
 
+// A rule draft from a transaction: the merchant ("Esselunga" out of "Esselunga — spesa settimanale")
+// rather than the whole description, so the rule also catches the next ones. `category` empty
+// leaves the choice to the user.
+export function ruleDraftFrom(tx, category = '') {
+  const field = tx.comment ? 'comment' : tx.tag ? 'tag' : 'account';
+  const text = String(tx[field] ?? '').trim();
+  const merchant = field === 'comment' ? text.split(/\s+[—–-]\s+|[,;:(|]|\s+\d/)[0].trim().slice(0, 40) : text;
+  return { kind: tx.kind === 'income' ? 'income' : 'expense', field, operator: 'contains', value: merchant || text.slice(0, 40), category };
+}
+
 export function normalizeRule(input = {}) {
   if (!(input.field in RULE_FIELDS)) return { error: 'Scegli il campo da controllare' };
   if (!(input.operator in RULE_OPERATORS)) return { error: 'Scegli come confrontare il testo' };

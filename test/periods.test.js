@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { comparisonRange, enumerateBuckets, presetRange, resolveGranularity, shiftRange } from '../public/js/lib/periods.js';
+import { comparisonRange, enumerateBuckets, matchingPreset, presetRange, resolveGranularity, shiftRange, stepRange, wholePeriod } from '../public/js/lib/periods.js';
 
 const today = '2026-10-29';
 
@@ -40,4 +40,23 @@ test('intervals cover the period without gaps', () => {
     ['2026-11-01', '2026-11-30'],
     ['2026-12-01', '2026-12-10'],
   ]);
+});
+
+test('‹ › step to the adjacent whole month or year, never past today', () => {
+  const month = presetRange('month', today);
+  assert.deepEqual(stepRange(month, -1, today), { from: '2026-09-01', to: '2026-09-30' });
+  assert.equal(stepRange(month, 1, today), null);
+  assert.deepEqual(stepRange({ from: '2026-09-01', to: '2026-09-30' }, 1, today), { from: '2026-10-01', to: today });
+  assert.deepEqual(stepRange(presetRange('ytd', today), -1, today), { from: '2025-01-01', to: '2025-12-31' });
+  assert.deepEqual(stepRange(presetRange('12m', today), -1, today), { from: '2024-11-01', to: '2025-10-31' });
+  assert.deepEqual(stepRange({ from: '2026-10-10', to: '2026-10-19' }, 1, today), { from: '2026-10-20', to: today });
+});
+
+test('a stepped period takes the name of the preset it matches, or of its month or year', () => {
+  assert.equal(matchingPreset({ from: '2026-10-01', to: today }, today), 'month');
+  assert.equal(matchingPreset({ from: '2026-09-01', to: '2026-09-30' }, today), 'prev-month');
+  assert.equal(matchingPreset({ from: '2026-08-01', to: '2026-08-31' }, today), null);
+  assert.deepEqual(wholePeriod({ from: '2026-08-01', to: '2026-08-31' }), { unit: 'month', key: '2026-08-01' });
+  assert.deepEqual(wholePeriod({ from: '2024-01-01', to: '2024-12-31' }), { unit: 'year', key: '2024-01-01' });
+  assert.equal(wholePeriod({ from: '2026-08-01', to: '2026-08-20' }), null);
 });
