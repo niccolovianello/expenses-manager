@@ -23,7 +23,7 @@ export function mountPeriodBar(element, store, actions) {
     </div>
     <div class="period-controls" id="period-controls">
       <div class="segmented period-presets" role="group" aria-label="Periodo rapido">
-        ${PRESETS.map((preset) => html`<button type="button" class="segmented-btn" data-preset="${preset.id}" aria-pressed="false">${preset.label}</button>`)}
+        ${PRESETS.map((preset) => html`<button type="button" class="segmented-btn" data-preset="${preset.id}" aria-pressed="false" aria-label="${preset.label}">${preset.short ?? preset.label}</button>`)}
       </div>
       <div class="period-range" role="group" aria-label="Intervallo di date">
         <button type="button" class="icon-btn" data-step="-1" aria-label="Periodo precedente">${icon('chevron-left')}</button>

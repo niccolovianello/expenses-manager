@@ -5,9 +5,15 @@ import { relativeChange } from '../../lib/aggregate.js';
 import { watch } from '../../state/store.js';
 import { selectOverview } from '../../state/selectors.js';
 import { EARLY_DAYS, delta } from '../../components/common.js';
+import { stepUnit } from '../../lib/periods.js';
 import { OVERVIEW_KEYS, isOverviewVisible } from './keys.js';
 
 export const elapsedDays = (range) => Math.max(1, diffDays(range.from, minISO(range.to, todayISO())) + 1);
+
+// The first days of a longer period compare too little to mean anything; a day or a week
+// is compared whole with the previous one.
+export const isEarlyComparison = (range, compare) => Boolean(compare)
+  && elapsedDays(range) <= EARLY_DAYS && !['day', 'week'].includes(stepUnit(range));
 
 function figure({ label, value, detail, emphasis = false }) {
   return html`<div class="figure${emphasis ? ' figure-main' : ''}">
@@ -23,7 +29,7 @@ export function mountSummary(element, store) {
     const { range, compare, totals: now, previousTotals: before } = selectOverview(state);
     const change = (key) => (before ? relativeChange(now[key], before[key]) : null);
     const days = elapsedDays(range);
-    const early = days <= EARLY_DAYS && Boolean(compare);
+    const early = isEarlyComparison(range, compare);
     const previousDaily = compare && before ? before.expense / elapsedDays(compare) : null;
 
     render(element, html`

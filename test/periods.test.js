@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { comparisonRange, enumerateBuckets, matchingPreset, presetRange, resolveGranularity, shiftRange, stepRange, wholePeriod } from '../public/js/lib/periods.js';
+import { comparisonRange, enumerateBuckets, matchingPreset, presetRange, resolveGranularity, shiftRange, stepRange, stepUnit, wholePeriod } from '../public/js/lib/periods.js';
 
 const today = '2026-10-29';
 
@@ -50,6 +50,34 @@ test('‹ › step to the adjacent whole month or year, never past today', () =>
   assert.deepEqual(stepRange(presetRange('ytd', today), -1, today), { from: '2025-01-01', to: '2025-12-31' });
   assert.deepEqual(stepRange(presetRange('12m', today), -1, today), { from: '2024-11-01', to: '2025-10-31' });
   assert.deepEqual(stepRange({ from: '2026-10-10', to: '2026-10-19' }, 1, today), { from: '2026-10-20', to: today });
+});
+
+test('‹ › move by a day from a single day and by a whole week from a week', () => {
+  assert.deepEqual(stepRange(presetRange('today', today), -1, today), { from: '2026-10-28', to: '2026-10-28' });
+  assert.equal(stepRange(presetRange('today', today), 1, today), null);
+  const week = { preset: 'week', ...presetRange('week', today) };
+  assert.deepEqual(week, { preset: 'week', from: '2026-10-26', to: today });
+  assert.deepEqual(stepRange(week, -1, today), { from: '2026-10-19', to: '2026-10-25' });
+  assert.deepEqual(stepRange({ from: '2026-10-19', to: '2026-10-25' }, 1, today), { from: '2026-10-26', to: today });
+  assert.deepEqual(comparisonRange(week), { from: '2026-10-19', to: '2026-10-22' });
+});
+
+test('on a Monday "Questa settimana" steps by weeks and "Oggi" by days', () => {
+  const monday = '2026-11-02';
+  const week = { preset: 'week', ...presetRange('week', monday) };
+  const day = { preset: 'today', ...presetRange('today', monday) };
+  assert.deepEqual(stepRange(week, -1, monday), { from: '2026-10-26', to: '2026-11-01' });
+  assert.deepEqual(stepRange(day, -1, monday), { from: '2026-11-01', to: '2026-11-01' });
+  assert.equal(matchingPreset({ from: monday, to: monday }, monday, stepUnit({ from: '2026-10-26', to: '2026-11-01' })), 'week');
+  assert.equal(matchingPreset({ from: monday, to: monday }, monday, stepUnit({ from: '2026-11-01', to: '2026-11-01' })), 'today');
+});
+
+test('on the 1st "Questo mese" steps by months and a single day by days', () => {
+  const first = '2026-11-01';
+  assert.deepEqual(stepRange({ preset: 'month', ...presetRange('month', first) }, -1, first), { from: '2026-10-01', to: '2026-10-31' });
+  assert.deepEqual(stepRange({ preset: 'today', ...presetRange('today', first) }, -1, first), { from: '2026-10-31', to: '2026-10-31' });
+  assert.deepEqual(stepRange({ preset: 'custom', from: first, to: first }, 1, '2026-11-02'), { from: '2026-11-02', to: '2026-11-02' });
+  assert.equal(matchingPreset({ from: first, to: first }, first, stepUnit({ from: '2026-10-01', to: '2026-10-31' })), 'month');
 });
 
 test('a stepped period takes the name of the preset it matches, or of its month or year', () => {

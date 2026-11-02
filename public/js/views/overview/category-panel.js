@@ -6,8 +6,8 @@ import { watch } from '../../state/store.js';
 import { selectColorMaps, selectOverview } from '../../state/selectors.js';
 import { createRingChart } from '../../charts/ring-chart.js';
 import { OTHER_COLOR, OTHER_LABEL } from '../../charts/palette.js';
-import { EARLY_DAYS, delta, emptyState } from '../../components/common.js';
-import { elapsedDays } from './summary.js';
+import { delta, emptyState } from '../../components/common.js';
+import { isEarlyComparison } from './summary.js';
 import { FLOW_LABELS, OVERVIEW_KEYS, isOverviewVisible } from './keys.js';
 
 const COLLAPSED_ROWS = 8;
@@ -145,7 +145,7 @@ export function mountCategoryPanel(element, store, actions) {
   function paint(state) {
     if (!isOverviewVisible(state)) return;
     const { range, flowTransactions, previousFlowTransactions, compare } = selectOverview(state);
-    const early = Boolean(compare) && elapsedDays(range) <= EARLY_DAYS;
+    const early = isEarlyComparison(range, compare);
     const flowLabel = FLOW_LABELS[state.flow];
     const focus = state.focusCategory;
     const colors = selectColorMaps(state)[state.flow];

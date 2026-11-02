@@ -2,7 +2,7 @@ import { todayISO } from '../lib/dates.js';
 import { duplicateKey, entryInput } from '../domain/entries.js';
 import { expandRecurrences, recurrenceInput } from '../domain/recurring.js';
 import { inRange } from '../lib/aggregate.js';
-import { PRESETS, matchingPreset, presetRange, stepRange } from '../lib/periods.js';
+import { PRESETS, matchingPreset, presetRange, stepRange, stepUnit } from '../lib/periods.js';
 import { navigate } from '../router.js';
 import { DEFAULT_TX_FILTERS } from './initial.js';
 import { baselineCategory, selectAccountSummary, selectExtent } from './selectors.js';
@@ -108,8 +108,9 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
 
     stepPeriod(direction) {
       const today = todayISO();
-      const range = stepRange(store.get().period, direction, today);
-      if (range) setPeriod({ preset: matchingPreset(range, today) ?? 'custom', ...range });
+      const { period } = store.get();
+      const range = stepRange(period, direction, today);
+      if (range) setPeriod({ preset: matchingPreset(range, today, stepUnit(period)) ?? 'custom', ...range });
     },
 
     // Zooming from a chart remembers the starting period, so one tap can return to it.

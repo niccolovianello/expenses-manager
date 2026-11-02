@@ -3,8 +3,11 @@ import {
   startOfMonth, startOfQuarter, startOfWeek, startOfYear,
 } from './dates.js';
 
+// `short`: the button label, where the name does not fit the phone grid.
 export const PRESETS = [
-  { id: 'month', label: 'Questo mese', range: (today) => ({ from: startOfMonth(today), to: today }) },
+  { id: 'today', label: 'Oggi', unit: 'day', range: (today) => ({ from: today, to: today }) },
+  { id: 'week', label: 'Questa settimana', short: 'Settimana', unit: 'week', range: (today) => ({ from: startOfWeek(today), to: today }) },
+  { id: 'month', label: 'Questo mese', unit: 'month', range: (today) => ({ from: startOfMonth(today), to: today }) },
   {
     id: 'prev-month',
     label: 'Mese scorso',
@@ -15,7 +18,7 @@ export const PRESETS = [
   },
   { id: '3m', label: '3 mesi', range: (today) => ({ from: startOfMonth(addMonths(today, -2)), to: today }) },
   { id: '12m', label: '12 mesi', range: (today) => ({ from: startOfMonth(addMonths(today, -11)), to: today }) },
-  { id: 'ytd', label: "Quest'anno", range: (today) => ({ from: startOfYear(today), to: today }) },
+  { id: 'ytd', label: "Quest'anno", unit: 'year', range: (today) => ({ from: startOfYear(today), to: today }) },
   {
     id: 'prev-year',
     label: 'Anno scorso',
@@ -47,11 +50,28 @@ export function presetRange(id, today, extent) {
 }
 
 // A month-aligned period shifts by whole months (a year if it starts in January);
-// a free period shifts by its length in days.
+// a free period shifts by its length in days. A single day on the 1st counts as a month only when it
+// is "Questo mese" or "Quest'anno" (otherwise it is just that day).
 function alignedMonths(range) {
   if (range.from !== startOfMonth(range.from)) return 0;
+  if (range.from === range.to && !['month', 'ytd'].includes(range.preset)) return 0;
   const span = monthsBetween(range.from, range.to) + 1;
   return range.from === startOfYear(range.from) && span <= 12 ? 12 : span;
+}
+
+// A period inside one week that starts on a Monday shifts by whole weeks. A single Monday counts
+// as a week only when it is "Questa settimana" (on a Monday it is just today).
+function isWeekAligned(range) {
+  if (range.from !== startOfWeek(range.from) || diffDays(range.from, range.to) >= 7) return false;
+  return range.from !== range.to || range.preset === 'week';
+}
+
+// The unit ‹ › step by: 'year', 'month', 'week', 'day', or null for a free period.
+export function stepUnit(range) {
+  const months = alignedMonths(range);
+  if (months) return months === 12 ? 'year' : 'month';
+  if (isWeekAligned(range)) return 'week';
+  return range.from === range.to ? 'day' : null;
 }
 
 export function shiftRange(range, direction) {
@@ -63,14 +83,14 @@ export function shiftRange(range, direction) {
       to: isEndOfMonth(range.to) ? endOfMonth(shiftedTo) : shiftedTo,
     };
   }
-  const length = diffDays(range.from, range.to) + 1;
-  return { from: addDays(range.from, direction * length), to: addDays(range.to, direction * length) };
+  const days = isWeekAligned(range) ? 7 : diffDays(range.from, range.to) + 1;
+  return { from: addDays(range.from, direction * days), to: addDays(range.to, direction * days) };
 }
 
 export const comparisonRange = (period) => (period.preset === 'all' ? null : shiftRange(period, -1));
 
 // ‹ › move to the adjacent whole period: from "Questo mese" (1–2 Nov) back to all of October,
-// from "Quest'anno" to the whole previous year. Never past today; null when there is nothing ahead.
+// from "Quest'anno" to the whole previous year, from "Questa settimana" to the whole previous week. Never past today; null when there is nothing ahead.
 // (The comparison instead keeps the same stretch of the previous period: see shiftRange.)
 export function stepRange(range, direction, today) {
   if (direction > 0 && range.to >= today) return null;
@@ -79,6 +99,9 @@ export function stepRange(range, direction, today) {
   if (months) {
     const from = addMonths(range.from, direction * months);
     next = { from, to: endOfMonth(addMonths(from, months - 1)) };
+  } else if (isWeekAligned(range)) {
+    const from = addDays(range.from, direction * 7);
+    next = { from, to: addDays(from, 6) };
   } else {
     next = shiftRange(range, direction);
   }
@@ -87,9 +110,12 @@ export function stepRange(range, direction, today) {
 }
 
 // The preset whose range is exactly this one, so a stepped period keeps a familiar name.
-export function matchingPreset(range, today) {
-  return PRESETS.find((preset) => preset.id !== 'all'
-    && ['from', 'to'].every((key) => preset.range(today)[key] === range[key]))?.id ?? null;
+// On a Monday or the 1st "Oggi" and "Questa settimana" or "Questo mese" are the same day:
+// `unit` picks the one being stepped through.
+export function matchingPreset(range, today, unit = null) {
+  const matches = PRESETS.filter((preset) => preset.id !== 'all'
+    && ['from', 'to'].every((key) => preset.range(today)[key] === range[key]));
+  return (matches.find((preset) => preset.unit === unit) ?? matches[0])?.id ?? null;
 }
 
 // A name for a custom range that is a whole month or a whole year ("Ottobre 2026", "2025"), or null.
