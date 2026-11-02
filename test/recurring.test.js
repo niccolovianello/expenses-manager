@@ -39,7 +39,7 @@ test('only occurrences from the creation day on move the balance', () => {
   assert.deepEqual(occurrences.map((o) => o.id), ['r-1@2026-01-31', 'r-1@2026-02-28', 'r-1@2026-03-31', 'r-1@2026-04-30']);
   assert.deepEqual(occurrences.map((o) => o.createdAt), [null, null, '2026-03-31T00:00:00.000Z', '2026-04-30T00:00:00.000Z']);
   const account = { id: 'a', name: 'Banca', balance: 5000, balanceAt: '2026-04-01T08:00:00.000Z' };
-  assert.equal(accountSummary([account], [], occurrences).rows[0].current, 4200);
+  assert.equal(accountSummary([account], occurrences).rows[0].current, 4200);
   assert.deepEqual(categorize(occurrences[0], { rules: [], overrides: {} }), { category: 'Casa', source: 'entry', ruleId: null });
 });
 

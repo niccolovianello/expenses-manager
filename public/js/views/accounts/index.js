@@ -35,7 +35,7 @@ export function mountAccounts(element, store, actions) {
     if (action.dataset.action === 'edit-account' && account) form.open(account);
   });
 
-  watch(store, ['status', 'route', 'accounts', 'entries', 'occurrences'], (state) => {
+  watch(store, ['status', 'route', 'accounts', 'transactions'], (state) => {
     if (state.status !== 'ready' || state.route !== 'accounts') return;
     const { rows, total } = selectAccountSummary(state);
     const excluded = rows.filter((row) => row.excluded).length;

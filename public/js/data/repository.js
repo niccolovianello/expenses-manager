@@ -130,13 +130,15 @@ export function createRepository(storage) {
     async importFile(file) {
       const dataset = await importExport(file);
       await storage.write(DATASET, dataset);
-      const imported = new Set(dataset.transactions.map(duplicateKey));
+      const imported = new Map(dataset.transactions.map((tx) => [duplicateKey(tx), tx]));
       const isDuplicate = (entry) => imported.has(duplicateKey(entry));
       const current = await loadEntries();
       const duplicates = current.filter(isDuplicate);
       if (!duplicates.length) return { dataset, entries: current, accounts: (await loadAccounts()) ?? [], removedDuplicates: 0 };
-      // The balances already include those transactions: removing them must not move the balances back.
-      const nextAccounts = await mutateAccounts((list) => foldEntries(list, duplicates));
+      // The balances already include those transactions: removing them must not move the balances back,
+      // nor must their copies in the export count a second time.
+      const copies = duplicates.map((entry) => imported.get(duplicateKey(entry)));
+      const nextAccounts = await mutateAccounts((list) => foldEntries(list, duplicates, copies));
       const remaining = await mutateEntries((list) => list.filter((entry) => !isDuplicate(entry)));
       return { dataset, entries: remaining, accounts: nextAccounts, removedDuplicates: duplicates.length };
     },

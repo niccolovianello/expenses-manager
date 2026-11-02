@@ -20,8 +20,8 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
   const newestFirst = (a, b) => (b.date + (b.time ?? '')).localeCompare(a.date + (a.time ?? ''));
 
   // The transactions shown are the imported ones plus the manual ones and the occurrences of the
-  // recurring ones up to today. An occurrence the export already contains is shown once, from the export
-  // (it still counts for the balances, like a manual transaction removed on import).
+  // recurring ones up to today. An occurrence the export already contains is shown once, from the export,
+  // and moves the balances once, as the imported transaction.
   function setData(patch) {
     const { imported, entries, recurrences } = { ...store.get(), ...patch };
     const occurrences = expandRecurrences(recurrences, todayISO());

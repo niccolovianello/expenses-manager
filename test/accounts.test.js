@@ -14,6 +14,10 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 const account = (name, balance, extra = {}) => ({ id: `a-${name}`, name, balance, balanceAt: '2026-11-01T10:00:00.000Z', icon: 'bank', color: '#e0592a', excluded: false, ...extra });
 const manual = (kind, amount, accountName, createdAt, toAccount = null) => ({ id: `m-${createdAt}`, origin: 'manual', kind, amount, account: accountName, toAccount, createdAt });
 
+// Imported transactions carry the local date and time of the export, no origin.
+const exported = (kind, amount, accountName, date, time = null) => ({ id: `x-${date}-${time}`, kind, amount, account: accountName, toAccount: null, date, time });
+const localISO = (date, time) => new Date(`${date}T${time}`).toISOString();
+
 test('only manual transactions entered after the balance was set move it', () => {
   const accounts = [account('Carta', 100), account('Cash', 20), account('Directa', 5000, { excluded: true })];
   const entries = [
@@ -21,11 +25,23 @@ test('only manual transactions entered after the balance was set move it', () =>
     manual('expense', 12.5, 'Carta', '2026-11-01T11:00:00.000Z'),
     manual('income', 50, 'Carta', '2026-11-01T12:00:00.000Z'),
     manual('transfer', 10, 'Carta', '2026-11-01T13:00:00.000Z', 'Cash'),
-    { ...manual('expense', 99, 'Carta', '2026-11-02T00:00:00.000Z'), origin: 'import' },
   ];
   const { rows, total } = accountSummary(accounts, entries);
   assert.deepEqual(rows.map((row) => row.current), [127.5, 30, 5000]);
   assert.equal(total, 157.5);
+});
+
+test('imported transactions that happened after the balance was set move it', () => {
+  const balanceAt = localISO('2026-11-01', '10:00');
+  const accounts = [account('Carta', 100, { balanceAt })];
+  const imported = [
+    exported('expense', 30, 'Carta', '2026-10-31', '18:00'),
+    exported('expense', 4, 'Carta', '2026-11-01', '09:30'),
+    exported('expense', 8, 'Carta', '2026-11-01'),
+    exported('expense', 12.5, 'Carta', '2026-11-01', '10:30'),
+    exported('income', 50, 'Carta', '2026-11-02'),
+  ];
+  assert.equal(accountSummary(accounts, imported).rows[0].current, 137.5);
 });
 
 test('removed transactions keep their effect on the balance', () => {
@@ -33,6 +49,21 @@ test('removed transactions keep their effect on the balance', () => {
   const [carta, cash] = foldEntries([account('Carta', 100), account('Cash', 20)], removed);
   assert.equal(carta.balance, 87.5);
   assert.equal(cash.balance, 20);
+});
+
+test('an import does not count twice a manual transaction it also contains', async () => {
+  const balanceAt = localISO('2026-11-01', '10:00');
+  // Entered after the balance: one happened after it too, the other before (entered late).
+  const entries = [
+    { ...manual('expense', 12.5, 'Carta', localISO('2026-11-01', '11:00')), date: '2026-11-01' },
+    { ...manual('expense', 7, 'Carta', localISO('2026-11-01', '12:00')), date: '2026-10-30' },
+  ];
+  const copies = [exported('expense', 12.5, 'Carta', '2026-11-01', '10:45'), exported('expense', 7, 'Carta', '2026-10-30', '20:00')];
+  const accounts = [account('Carta', 100, { balanceAt })];
+  const before = accountSummary(accounts, entries).rows[0].current;
+  const after = accountSummary(foldEntries(accounts, entries, copies), copies).rows[0].current;
+  assert.equal(before, 80.5);
+  assert.equal(after, before);
 });
 
 test('account input is validated', () => {
