@@ -13,7 +13,7 @@ export function mountAccounts(element, store, actions) {
     <header class="view-head">
       <div class="view-heading">
         <h1 class="view-title">Conti</h1>
-        <p class="view-sub">Il saldo si aggiorna con ogni movimento inserito a mano dopo l’ultima modifica del saldo.</p>
+        <p class="view-sub">Il saldo si aggiorna con ogni movimento inserito a mano o ricorrente dopo l’ultima modifica del saldo.</p>
       </div>
       <button type="button" class="btn btn-primary" data-action="new-account">${icon('plus')}Nuovo conto</button>
     </header>
@@ -34,7 +34,7 @@ export function mountAccounts(element, store, actions) {
     if (action.dataset.action === 'edit-account' && account) form.open(account);
   });
 
-  watch(store, ['status', 'route', 'accounts', 'entries'], (state) => {
+  watch(store, ['status', 'route', 'accounts', 'entries', 'occurrences'], (state) => {
     if (state.status !== 'ready' || state.route !== 'accounts') return;
     const { rows, total } = selectAccountSummary(state);
     const excluded = rows.filter((row) => row.excluded).length;

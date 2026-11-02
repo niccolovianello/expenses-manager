@@ -31,7 +31,7 @@ const accountsOf = memo((transactions) => {
 export const selectAccounts = (state) => accountsOf(state.transactions);
 
 const accountSummaryOf = memo(accountSummary);
-export const selectAccountSummary = (state) => accountSummaryOf(state.accounts, state.entries);
+export const selectAccountSummary = (state) => accountSummaryOf(state.accounts, state.entries, state.occurrences);
 
 const categoriesOf = memo((categorized, rules) => {
   const byKind = { expense: new Set(), income: new Set() };

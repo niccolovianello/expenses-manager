@@ -1,5 +1,6 @@
 import { todayISO } from '../lib/dates.js';
-import { entryInput } from '../domain/entries.js';
+import { duplicateKey, entryInput } from '../domain/entries.js';
+import { expandRecurrences, recurrenceInput } from '../domain/recurring.js';
 import { inRange } from '../lib/aggregate.js';
 import { PRESETS, presetRange, shiftRange } from '../lib/periods.js';
 import { navigate } from '../router.js';
@@ -17,10 +18,15 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
 
   const newestFirst = (a, b) => (b.date + (b.time ?? '')).localeCompare(a.date + (a.time ?? ''));
 
-  // The transactions shown are the imported ones plus the manual ones.
+  // The transactions shown are the imported ones plus the manual ones and the occurrences of the
+  // recurring ones up to today. An occurrence the export already contains is shown once, from the export
+  // (it still counts for the balances, like a manual transaction removed on import).
   function setData(patch) {
-    const { imported, entries } = { ...store.get(), ...patch };
-    store.set({ ...patch, transactions: [...entries, ...imported].sort(newestFirst) });
+    const { imported, entries, recurrences } = { ...store.get(), ...patch };
+    const occurrences = expandRecurrences(recurrences, todayISO());
+    const exported = new Set(imported.map(duplicateKey));
+    const shown = occurrences.filter((occurrence) => !exported.has(duplicateKey(occurrence)));
+    store.set({ ...patch, occurrences, transactions: [...entries, ...shown, ...imported].sort(newestFirst) });
   }
 
   function showData() {
@@ -49,12 +55,14 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     async load() {
       store.set({ status: 'loading', error: null });
       try {
-        const [dataset, config, entries, stored] = await Promise.all([api.dataset(), api.categorization(), api.entries(), api.accounts()]);
+        const [dataset, config, entries, recurrences, stored] = await Promise.all([
+          api.dataset(), api.categorization(), api.entries(), api.recurrences(), api.accounts(),
+        ]);
         const seed = await loadAccountSeed();
         const accounts = seed ? await api.seedAccounts(seed) : stored ?? [];
         store.set({ config, accounts });
-        setData({ imported: dataset?.transactions ?? [], meta: dataset?.meta ?? null, entries });
-        if (dataset || entries.length || accounts.length) showData();
+        setData({ imported: dataset?.transactions ?? [], meta: dataset?.meta ?? null, entries, recurrences });
+        if (dataset || entries.length || recurrences.length || accounts.length) showData();
         else store.set({ status: 'empty' });
       } catch (error) {
         store.set({ status: 'error', error: error.message });
@@ -150,9 +158,14 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       navigate('transactions');
     },
 
-    openEntryForm(entry = null) {
-      if (store.get().status === 'empty') showData();
-      store.set({ entryDraft: { token: Date.now(), entry } });
+    // `recurring`: the entry is a recurrence, or the new transaction starts as a recurring one.
+    // An occurrence of a recurring transaction opens the recurrence it comes from.
+    openEntryForm(entry = null, { recurring = false } = {}) {
+      const state = store.get();
+      if (state.status === 'empty') showData();
+      const occurrence = entry?.origin === 'recurring';
+      const source = occurrence ? state.recurrences.find((r) => r.id === entry.recurrenceId) ?? null : entry;
+      store.set({ entryDraft: { token: Date.now(), entry: source, recurring: recurring || occurrence } });
       navigate('transactions');
     },
 
@@ -183,12 +196,36 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       }
     },
 
+    async saveRecurrence(id, input) {
+      try {
+        const recurrences = id ? await api.updateRecurrence(id, input) : await api.addRecurrence(input);
+        setData({ recurrences });
+        const future = input.date > todayISO() ? ' (la prima volta in futuro)' : '';
+        showToast(`${id ? 'Movimento ricorrente aggiornato' : 'Movimento ricorrente aggiunto'}${future}`);
+        return true;
+      } catch (error) {
+        showToast(error.message, { tone: 'error' });
+        return false;
+      }
+    },
+
+    async deleteRecurrence(id) {
+      try {
+        setData({ recurrences: await api.deleteRecurrence(id) });
+        showToast('Movimento ricorrente eliminato');
+        return true;
+      } catch (error) {
+        showToast(error.message, { tone: 'error' });
+        return false;
+      }
+    },
+
     async saveAccount(id, input) {
       try {
         if (id) {
-          const { accounts, entries } = await api.updateAccount(id, input);
+          const { accounts, entries, recurrences } = await api.updateAccount(id, input);
           store.set({ accounts });
-          setData({ entries });
+          setData({ entries, recurrences });
         } else {
           store.set({ accounts: await api.addAccount(input) });
         }
@@ -212,7 +249,13 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       }
     },
 
+    // On an occurrence the category changes for the whole recurrence.
     async setCategory(tx, category) {
+      if (tx.origin === 'recurring') {
+        const recurrence = store.get().recurrences.find((r) => r.id === tx.recurrenceId);
+        if (recurrence) await actions.saveRecurrence(recurrence.id, { ...recurrenceInput(recurrence), category });
+        return;
+      }
       if (tx.origin === 'manual') {
         await actions.saveEntry(tx.id, { ...entryInput(tx), category });
         return;

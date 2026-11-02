@@ -30,7 +30,9 @@ function categoryCell(tx, state, categories) {
 }
 
 // On the phone the row is read-only; tapping it opens it with an editable category and actions.
-const isEditable = (tx) => tx.origin === 'manual' || tx.kind !== 'transfer';
+const isEntered = (tx) => tx.origin === 'manual' || tx.origin === 'recurring';
+const isEditable = (tx) => isEntered(tx) || tx.kind !== 'transfer';
+const BADGES = { manual: 'Inserito a mano', recurring: 'Ricorrente' };
 
 export function transactionRow(tx, state, categories, open = false) {
   const amount = tx.kind === 'transfer' ? formatEUR(tx.amount) : formatSignedEUR(signedAmount(tx));
@@ -39,8 +41,8 @@ export function transactionRow(tx, state, categories, open = false) {
     <td class="col-date nowrap muted">${formatDate(tx.date)}</td>
     <td class="col-desc">
       <span class="cell-title">${describeTransaction(tx)}</span>
-      ${secondary || tx.origin === 'manual' ? html`<span class="cell-sub">
-        ${tx.origin === 'manual' ? html`<span class="badge">Inserito a mano</span>` : ''}${secondary}
+      ${secondary || isEntered(tx) ? html`<span class="cell-sub">
+        ${isEntered(tx) ? html`<span class="badge">${BADGES[tx.origin]}</span>` : ''}${secondary}
       </span>` : ''}
     </td>
     <td class="col-category">${categoryCell(tx, state, categories)}</td>
@@ -48,8 +50,8 @@ export function transactionRow(tx, state, categories, open = false) {
     <td class="col-amount num nowrap strong amount-${tx.kind}">${amount}</td>
     <td class="col-actions">
       ${isEditable(tx) ? html`<button type="button" class="icon-btn row-toggle" data-action="toggle-row" aria-expanded="${open}" aria-label="${open ? 'Chiudi' : 'Modifica'} ${describeTransaction(tx)}">${icon(open ? 'chevron-up' : 'chevron-down')}</button>` : ''}
-      ${tx.origin === 'manual'
-        ? html`<button type="button" class="icon-btn" data-action="edit-entry" title="Modifica o elimina" aria-label="Modifica ${describeTransaction(tx)}">${icon('pencil')}</button>`
+      ${isEntered(tx)
+        ? html`<button type="button" class="icon-btn" data-action="edit-entry" title="${tx.origin === 'recurring' ? 'Modifica la ripetizione' : 'Modifica o elimina'}" aria-label="Modifica ${describeTransaction(tx)}">${icon('pencil')}</button>`
         : tx.kind === 'transfer'
           ? ''
           : html`<button type="button" class="icon-btn" data-action="rule" title="Crea una regola da questo movimento" aria-label="Crea una regola da ${describeTransaction(tx)}">${icon('rule')}</button>`}

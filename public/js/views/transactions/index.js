@@ -10,6 +10,7 @@ import { emptyState } from '../../components/common.js';
 import { transactionRow } from './row.js';
 import { startNewCategory } from './new-category.js';
 import { mountEntryForm } from './entry-form.js';
+import { mountRecurringList } from './recurring-list.js';
 
 const KINDS = [
   { id: 'all', label: 'Tutti' },
@@ -39,6 +40,7 @@ export function mountTransactions(element, store, actions) {
       <button type="button" class="btn btn-primary" data-action="new-entry">${icon('plus')}Nuovo movimento</button>
     </header>
     <section class="panel entry-panel" data-ref="entry" hidden></section>
+    <section class="panel" data-ref="recurring" hidden></section>
     <section class="panel panel-flush">
       <div class="filter-bar">
         <label class="search-field">
@@ -64,6 +66,7 @@ export function mountTransactions(element, store, actions) {
 
   const refs = collectRefs(element);
   mountEntryForm(refs.entry, store, actions);
+  mountRecurringList(refs.recurring, store, actions);
   const phone = window.matchMedia('(max-width: 640px)');
   let rowsById = new Map();
   let openId = null;

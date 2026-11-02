@@ -786,3 +786,48 @@ fieldset.field .field-label { margin-bottom: var(--space-1); padding: 0; }
   .field-wide { grid-column: auto; }
   .account-row { padding-inline: 0; }
 }
+
+/* Recurring transactions */
+.recurring-list { display: flex; flex-direction: column; }
+
+.recurring-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 12rem) 7.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--space-3) var(--space-2);
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease-out);
+}
+
+.recurring-row:hover { background: var(--surface-2); }
+.recurring-row:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--radius); }
+.recurring-row .num { text-align: right; }
+.recurring-row.is-ended { color: var(--text-3); }
+.recurring-row.is-ended .num { color: var(--text-3); }
+
+.recurring-mark {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.recurring-main { min-width: 0; }
+.recurring-account { color: var(--text-2); font-size: var(--fs-s); }
+
+@media (max-width: 640px) {
+  .recurring-row { grid-template-columns: auto minmax(0, 1fr) auto; padding-inline: 0; }
+  .recurring-account { display: none; }
+}

@@ -1,15 +1,16 @@
 import { ENTRY_KINDS, entryInput, normalizeEntry } from '../../domain/entries.js';
+import { FREQUENCIES, normalizeRecurrence, recurrenceInput } from '../../domain/recurring.js';
 import { html, render, collectRefs } from '../../lib/html.js';
 import { icon } from '../../lib/icons.js';
 import { todayISO } from '../../lib/dates.js';
 import { watch } from '../../state/store.js';
 import { selectCategories } from '../../state/selectors.js';
 
-const FIELDS = ['date', 'amount', 'account', 'toAccount', 'category', 'tag', 'comment'];
+const FIELDS = ['date', 'amount', 'account', 'toAccount', 'category', 'tag', 'comment', 'frequency', 'endDate'];
 const formatAmountInput = (amount) => (amount ? amount.toFixed(2).replace('.', ',') : '');
 
-// Form to enter or edit a transaction by hand. It stays open after saving
-// a new transaction, with kind, date, account and category ready for the next one.
+// Form to enter or edit a transaction by hand, once or repeating from a base date. It stays open after
+// saving a new one-off transaction, with kind, date, account and category ready for the next one.
 export function mountEntryForm(element, store, actions) {
   render(element, html`
     <header class="panel-head">
@@ -24,7 +25,9 @@ export function mountEntryForm(element, store, actions) {
         ${Object.entries(ENTRY_KINDS).map(([kind, label]) => html`<button type="button" class="segmented-btn" data-kind="${kind}" aria-pressed="false">${label}</button>`)}
       </div>
       <div class="entry-fields">
-        <label class="field"><span class="field-label">Data</span><input class="input" type="date" name="date" required></label>
+        <label class="field"><span class="field-label" data-ref="dateLabel">Data</span><input class="input" type="date" name="date" required></label>
+        <label class="field" data-ref="frequencyField"><span class="field-label">Ripetizione</span><select class="input" name="frequency" data-ref="frequency"></select></label>
+        <label class="field" data-ref="endDateField"><span class="field-label">Fino al <span class="field-optional">facoltativo</span></span><input class="input" type="date" name="endDate"></label>
         <label class="field"><span class="field-label">Importo (€)</span><input class="input input-amount" name="amount" inputmode="decimal" placeholder="0,00" autocomplete="off" required></label>
         <label class="field"><span class="field-label" data-ref="accountLabel">Conto</span><select class="input" name="account" required></select></label>
         <label class="field" data-ref="toAccountField"><span class="field-label">Al conto</span><select class="input" name="toAccount"></select></label>
@@ -46,6 +49,8 @@ export function mountEntryForm(element, store, actions) {
   const fields = refs.form.elements;
   let kind = 'expense';
   let editingId = null;
+  // 'entry': a one-off transaction being edited; 'recurrence': a recurring one; null: a new one, either.
+  let editing = null;
   let saving = false;
   let lastToken = null;
 
@@ -59,6 +64,14 @@ export function mountEntryForm(element, store, actions) {
     refs.categoryField.hidden = isTransfer;
     refs.accountLabel.textContent = isTransfer ? 'Dal conto' : 'Conto';
     syncOptions(store.get());
+  }
+
+  // A repeating transaction starts on the base date and can have an end.
+  function syncFrequency() {
+    const repeats = Boolean(fields.frequency.value);
+    refs.dateLabel.textContent = repeats ? 'A partire dal' : 'Data';
+    refs.endDateField.hidden = !repeats;
+    if (!repeats) fields.endDate.value = '';
   }
 
   // Only the accounts of the Conti section; an older transaction keeps its account even if it is not there.
@@ -93,14 +106,21 @@ export function mountEntryForm(element, store, actions) {
     input.focus();
   }
 
-  function open(entry) {
+  // `recurring`: the entry is a recurrence, or the new transaction starts as a monthly one.
+  function open(entry, recurring = false) {
     editingId = entry?.id ?? null;
-    const values = entry ? entryInput(entry) : { date: todayISO() };
+    editing = entry ? (recurring ? 'recurrence' : 'entry') : null;
+    const values = entry ? (recurring ? recurrenceInput(entry) : entryInput(entry)) : { date: todayISO(), frequency: recurring ? 'monthly' : '' };
+    // An existing transaction stays one-off or recurring: only how often it repeats can change.
+    const frequencies = Object.entries(editing === 'recurrence' ? FREQUENCIES : { '': 'Non si ripete', ...FREQUENCIES });
+    render(refs.frequency, frequencies.map(([value, label]) => html`<option value="${value}">${label}</option>`));
+    refs.frequencyField.hidden = editing === 'entry';
     // The account selects get their options (and the value) from syncOptions, called by setKind.
     for (const name of ['account', 'toAccount']) render(fields[name], html`<option value="${values[name] ?? ''}"></option>`);
     for (const name of FIELDS) fields[name].value = values[name] ?? '';
     fields.amount.value = formatAmountInput(values.amount);
-    refs.title.textContent = editingId ? 'Modifica movimento' : 'Nuovo movimento';
+    syncFrequency();
+    refs.title.textContent = editing === 'recurrence' ? 'Modifica movimento ricorrente' : editingId ? 'Modifica movimento' : 'Nuovo movimento';
     render(refs.submit, editingId ? html`Salva modifiche` : html`${icon('plus')}Aggiungi`);
     refs.remove.hidden = !editingId;
     showError(null);
@@ -123,6 +143,7 @@ export function mountEntryForm(element, store, actions) {
   function close() {
     element.hidden = true;
     editingId = null;
+    editing = null;
   }
 
   const readForm = () => ({ kind, ...Object.fromEntries(FIELDS.map((name) => [name, fields[name].value])) });
@@ -134,12 +155,20 @@ export function mountEntryForm(element, store, actions) {
   refs.close.addEventListener('click', close);
   refs.cancel.addEventListener('click', close);
   refs.form.addEventListener('input', () => showError(null));
+  refs.frequency.addEventListener('change', syncFrequency);
   refs.form.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') close();
   });
 
   refs.remove.addEventListener('click', async () => {
-    if (!editingId || !window.confirm('Eliminare questo movimento inserito a mano?')) return;
+    if (!editingId) return;
+    if (editing === 'recurrence') {
+      const question = 'Eliminare questo movimento ricorrente? Spariscono anche tutte le volte già passate: '
+        + 'per fermarlo e tenerne lo storico, imposta invece una data “Fino al”.';
+      if (window.confirm(question) && await actions.deleteRecurrence(editingId)) close();
+      return;
+    }
+    if (!window.confirm('Eliminare questo movimento inserito a mano?')) return;
     if (await actions.deleteEntry(editingId)) close();
   });
 
@@ -147,17 +176,18 @@ export function mountEntryForm(element, store, actions) {
     event.preventDefault();
     if (saving) return;
     const input = readForm();
-    const { error, field } = normalizeEntry(input);
+    const recurring = Boolean(input.frequency);
+    const { error, field } = recurring ? normalizeRecurrence(input) : normalizeEntry(input);
     if (error) return showError(error, field);
 
     saving = true;
     refs.submit.disabled = true;
-    const saved = await actions.saveEntry(editingId, input);
+    const saved = recurring ? await actions.saveRecurrence(editingId, input) : await actions.saveEntry(editingId, input);
     saving = false;
     refs.submit.disabled = false;
     if (!saved) return;
 
-    if (editingId) return close();
+    if (editingId || recurring) return close();
     // Ready for the next one: only amount and details are cleared.
     for (const name of ['amount', 'tag', 'comment']) fields[name].value = '';
     fields.amount.focus();
@@ -166,7 +196,7 @@ export function mountEntryForm(element, store, actions) {
   watch(store, ['entryDraft', 'transactions', 'config', 'accounts', 'route'], (state) => {
     if (state.entryDraft && state.entryDraft.token !== lastToken) {
       lastToken = state.entryDraft.token;
-      open(state.entryDraft.entry);
+      open(state.entryDraft.entry, state.entryDraft.recurring);
     } else if (!element.hidden) {
       syncOptions(state);
     }

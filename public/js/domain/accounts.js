@@ -1,7 +1,8 @@
 import { cleanText, parseAmount } from './entries.js';
 
 // Accounts with a balance typed by hand. The balance is the truth at the moment it was set
-// (`balanceAt`): manual transactions entered after that moment move it, earlier ones are already part of it.
+// (`balanceAt`): manual transactions entered after that moment, and occurrences of recurring ones
+// happened after it, move it; earlier ones are already part of it.
 export const ACCOUNT_ICONS = {
   bank: 'Banca',
   card: 'Carta',
@@ -36,7 +37,7 @@ export function entryEffects(entry) {
   return [];
 }
 
-const countsFor = (account, entry) => entry.origin === 'manual' && entry.createdAt > account.balanceAt;
+const countsFor = (account, entry) => (entry.origin === 'manual' || entry.origin === 'recurring') && entry.createdAt > account.balanceAt;
 
 export function movementsSince(account, entries) {
   let sum = 0;
@@ -48,8 +49,9 @@ export function movementsSince(account, entries) {
 }
 
 // Current balance of every account, and the total of those not excluded from it.
-export function accountSummary(accounts, entries) {
-  const rows = accounts.map((account) => ({ ...account, current: round2(account.balance + movementsSince(account, entries)) }));
+export function accountSummary(accounts, entries, occurrences = []) {
+  const movements = [...entries, ...occurrences];
+  const rows = accounts.map((account) => ({ ...account, current: round2(account.balance + movementsSince(account, movements)) }));
   const total = round2(rows.reduce((sum, row) => (row.excluded ? sum : sum + row.current), 0));
   return { rows, total };
 }

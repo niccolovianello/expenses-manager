@@ -19,7 +19,7 @@ export function parseAmount(value) {
   return text ? Number(text) : NaN;
 }
 
-function isValidDate(iso) {
+export function isValidDate(iso) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso ?? '')) return false;
   const [year, month, day] = iso.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));

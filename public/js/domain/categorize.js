@@ -1,6 +1,6 @@
 // Categorization logic: computation, previews and rule validation.
 // Precedence: manual override > first matching active rule > export category.
-// Manually entered transactions always keep the category chosen when they were entered.
+// Manually entered and recurring transactions always keep the category chosen when they were entered.
 
 export const UNCATEGORIZED = 'Da categorizzare';
 
@@ -65,8 +65,8 @@ export function ruleMatches(rule, tx) {
 
 export function categorize(tx, { rules = [], overrides = {} } = {}) {
   if (tx.kind === 'transfer') return { category: null, source: 'transfer', ruleId: null };
-  // A manual transaction has the category chosen by whoever entered it: rules do not change it.
-  if (tx.origin === 'manual') return { category: tx.sourceCategory || UNCATEGORIZED, source: 'entry', ruleId: null };
+  // A manual or recurring transaction has the category chosen by whoever entered it: rules do not change it.
+  if (tx.origin === 'manual' || tx.origin === 'recurring') return { category: tx.sourceCategory || UNCATEGORIZED, source: 'entry', ruleId: null };
   if (overrides[tx.id]) return { category: overrides[tx.id], source: 'manual', ruleId: null };
   const rule = rules.find((candidate) => candidate.enabled !== false && ruleMatches(candidate, tx));
   if (rule) return { category: rule.category, source: 'rule', ruleId: rule.id };
