@@ -64,3 +64,13 @@ test('the repository adds, edits, renames and deletes recurrences', async () => 
   assert.deepEqual(await repo.deleteRecurrence(list[0].id), []);
   assert.deepEqual(storage.blobs.get('recurring'), []);
 });
+
+test('the repository seeds each recurrence once, by description', async () => {
+  const storage = memoryStorage({ accounts: [{ id: 'a', name: 'Banca', balance: 0, balanceAt: '2026-01-01T00:00:00.000Z' }] });
+  const repo = createRepository(storage);
+  let list = await repo.seedRecurrences([rent, { ...rent, comment: 'Netflix', amount: 13 }]);
+  assert.equal(list.length, 2);
+  await repo.deleteRecurrence(list.find((r) => r.comment === 'Netflix').id);
+  list = await repo.seedRecurrences([rent, { ...rent, comment: 'Netflix', amount: 13 }, { ...rent, comment: 'affitto' }]);
+  assert.deepEqual(list.map((r) => r.comment), ['Affitto']);
+});

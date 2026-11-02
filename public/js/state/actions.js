@@ -6,7 +6,7 @@ import { PRESETS, presetRange, shiftRange } from '../lib/periods.js';
 import { navigate } from '../router.js';
 import { DEFAULT_TX_FILTERS } from './initial.js';
 import { baselineCategory, selectAccountSummary, selectExtent } from './selectors.js';
-import { loadAccountSeed } from '../data/account-seed.js';
+import { loadAccountSeed, loadRecurringSeed } from '../data/local-seed.js';
 import { formatEUR } from '../lib/format.js';
 import { showToast } from '../components/toast.js';
 
@@ -55,11 +55,14 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     async load() {
       store.set({ status: 'loading', error: null });
       try {
-        const [dataset, config, entries, recurrences, stored] = await Promise.all([
+        const [dataset, config, entries, storedRecurrences, stored] = await Promise.all([
           api.dataset(), api.categorization(), api.entries(), api.recurrences(), api.accounts(),
         ]);
         const seed = await loadAccountSeed();
         const accounts = seed ? await api.seedAccounts(seed) : stored ?? [];
+        // After the accounts: the recurring transactions must use one of them.
+        const recurringSeed = await loadRecurringSeed();
+        const recurrences = recurringSeed ? await api.seedRecurrences(recurringSeed) : storedRecurrences;
         store.set({ config, accounts });
         setData({ imported: dataset?.transactions ?? [], meta: dataset?.meta ?? null, entries, recurrences });
         if (dataset || entries.length || recurrences.length || accounts.length) showData();

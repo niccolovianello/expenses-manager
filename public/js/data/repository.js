@@ -10,6 +10,7 @@ const ENTRIES = 'entries';
 const ACCOUNTS = 'accounts';
 const RECURRING = 'recurring';
 const SEEDED = 'account-seed';
+const SEEDED_RECURRING = 'recurring-seed';
 
 // Access to the app's data on top of an encrypted store with read(name) / write(name, value).
 // Five containers: the last imported export, manually entered transactions, recurring ones,
@@ -199,6 +200,23 @@ export function createRepository(storage) {
       const next = await writeAccounts(list);
       await storage.write(SEEDED, [...seeded, ...missing.map((input) => input.name)]);
       return next;
+    }),
+
+    // Adds the initial recurring transactions, each one once (by description): one deleted later
+    // does not come back, one with the same description is left as it is.
+    seedRecurrences: (inputs) => serial(async () => {
+      const list = structuredClone(await loadRecurrences());
+      const seeded = new Set((await storage.read(SEEDED_RECURRING)) ?? []);
+      const key = (text) => (text ?? '').toLocaleLowerCase('it');
+      const taken = new Set(list.map((recurrence) => key(recurrence.comment)));
+      const missing = inputs.filter((input) => !seeded.has(input.comment) && !taken.has(key(input.comment)));
+      if (!missing.length) return list;
+      const now = new Date().toISOString();
+      for (const input of missing) list.push({ id: `r-${crypto.randomUUID()}`, createdAt: now, ...(await validRecurrence(input)) });
+      await storage.write(RECURRING, list);
+      recurrences = list;
+      await storage.write(SEEDED_RECURRING, [...seeded, ...missing.map((input) => input.comment)]);
+      return list;
     }),
 
     addAccount: (input) => mutateAccounts((list) => [

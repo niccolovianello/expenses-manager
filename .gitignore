@@ -8,3 +8,5 @@ node_modules/
 .impeccable/hook.cache.json
 # Initial accounts with real balances: served only by the local server, never published.
 public/js/data/accounts.local.js
+# Initial recurring transactions: same reason.
+public/js/data/recurring.local.js
