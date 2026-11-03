@@ -378,6 +378,13 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 
 .cat-note .link-btn { margin-left: var(--space-1); font-size: var(--fs-xs); }
 
+/* Every row is as tall as the tallest one (category menu plus its note), with or without
+   the second line: the list keeps one rhythm. On a table cell the height is a minimum. */
+@media (min-width: 641px) {
+  .cat-note { line-height: 16px; }
+  .tx-table tbody td { height: calc(var(--space-2) * 2 + 28px + 4px + 16px + 1px); }
+}
+
 .amount-income { color: var(--good); }
 .amount-transfer { color: var(--text-3); }
 
@@ -482,6 +489,10 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
       "account account account"
       "category category actions";
   }
+
+  /* The last line keeps the toggle's height when a row has no category or toggle (a transfer). */
+  .tx-table tr:not(.day-row, .is-open) { grid-template-rows: auto auto 28px; }
+  .tx-table.is-grouped tr:not(.day-row, .is-open) { grid-template-rows: auto 28px; }
 
   .tx-table.is-grouped tr:not(.day-row) { align-items: center; row-gap: var(--space-1); }
   .tx-table.is-grouped .col-category { margin-top: 0; }
