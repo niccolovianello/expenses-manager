@@ -32,7 +32,6 @@ function categoryCell(tx, state, categories) {
 // On the phone the row is read-only; tapping it opens it with an editable category and actions.
 const isEntered = (tx) => tx.origin === 'manual' || tx.origin === 'recurring';
 const isEditable = (tx) => isEntered(tx) || tx.kind !== 'transfer';
-const BADGES = { manual: 'Inserito a mano', recurring: 'Ricorrente' };
 
 export function transactionRow(tx, state, categories, open = false) {
   const amount = tx.kind === 'transfer' ? formatEUR(tx.amount) : formatSignedEUR(signedAmount(tx));
@@ -41,8 +40,8 @@ export function transactionRow(tx, state, categories, open = false) {
     <td class="col-date nowrap muted">${formatDate(tx.date)}</td>
     <td class="col-desc">
       <span class="cell-title">${describeTransaction(tx)}</span>
-      ${secondary || isEntered(tx) ? html`<span class="cell-sub">
-        ${isEntered(tx) ? html`<span class="badge">${BADGES[tx.origin]}</span>` : ''}${secondary}
+      ${secondary || tx.origin === 'recurring' ? html`<span class="cell-sub">
+        ${tx.origin === 'recurring' ? html`<span class="badge">Ricorrente</span>` : ''}${secondary}
       </span>` : ''}
     </td>
     <td class="col-category">${categoryCell(tx, state, categories)}</td>
