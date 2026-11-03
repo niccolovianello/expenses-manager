@@ -1,6 +1,7 @@
 import { todayISO } from '../lib/dates.js';
 import { duplicateKey, entryInput } from '../domain/entries.js';
 import { expandRecurrences, recurrenceInput } from '../domain/recurring.js';
+import { expandTopUps, settleTopUp } from '../domain/topups.js';
 import { inRange } from '../lib/aggregate.js';
 import { PRESETS, matchingPreset, presetRange, stepRange, stepUnit } from '../lib/periods.js';
 import { navigate } from '../router.js';
@@ -19,16 +20,22 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
 
   const newestFirst = (a, b) => (b.date + (b.time ?? '')).localeCompare(a.date + (a.time ?? ''));
 
-  // The transactions shown are the imported ones plus the manual ones and the occurrences of the
-  // recurring ones up to today. An occurrence the export already contains is shown once, from the export,
-  // and moves the balances once, as the imported transaction.
-  function setData(patch) {
-    const { imported, entries, recurrences } = { ...store.get(), ...patch };
-    const occurrences = expandRecurrences(recurrences, todayISO());
+  // The transactions shown are the imported ones plus the manual ones, the occurrences of the
+  // recurring ones and the automatic top-ups up to today. An occurrence the export already contains is
+  // shown once, from the export, and moves the balances once, as the imported transaction.
+  // The top-ups depend on the balances, so this runs again whenever the accounts change.
+  function setData(patch = {}) {
+    const { imported, entries, recurrences, topUps, accounts } = { ...store.get(), ...patch };
+    const today = todayISO();
+    const occurrences = expandRecurrences(recurrences, today);
     const exported = new Set(imported.map(duplicateKey));
-    const shown = occurrences.filter((occurrence) => !exported.has(duplicateKey(occurrence)));
-    store.set({ ...patch, occurrences, transactions: [...entries, ...shown, ...imported].sort(newestFirst) });
+    const shown = [...entries, ...occurrences.filter((occurrence) => !exported.has(duplicateKey(occurrence))), ...imported];
+    const toppedUp = expandTopUps(topUps, shown, accounts, imported, today);
+    store.set({ ...patch, occurrences, transactions: [...shown, ...toppedUp].sort(newestFirst) });
   }
+
+  // Before the history a top-up depends on changes, its amounts so far stay as they are.
+  const settlementOf = (topUp) => settleTopUp(topUp, store.get().transactions, todayISO());
 
   function showData() {
     const { period } = store.get();
@@ -57,16 +64,16 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     async load() {
       store.set({ status: 'loading', error: null });
       try {
-        const [dataset, config, entries, storedRecurrences, stored] = await Promise.all([
-          api.dataset(), api.categorization(), api.entries(), api.recurrences(), api.accounts(),
+        const [dataset, config, entries, storedRecurrences, stored, topUps] = await Promise.all([
+          api.dataset(), api.categorization(), api.entries(), api.recurrences(), api.accounts(), api.topUps(),
         ]);
         const seed = await loadAccountSeed();
         const accounts = seed ? await api.seedAccounts(seed) : stored ?? [];
         // After the accounts: the recurring transactions must use one of them.
         const recurringSeed = await loadRecurringSeed();
         const recurrences = recurringSeed ? await api.seedRecurrences(recurringSeed) : storedRecurrences;
-        store.set({ config, accounts });
-        setData({ imported: dataset?.transactions ?? [], meta: dataset?.meta ?? null, entries, recurrences });
+        store.set({ config });
+        setData({ imported: dataset?.transactions ?? [], meta: dataset?.meta ?? null, entries, recurrences, accounts, topUps });
         if (dataset || entries.length || recurrences.length || accounts.length) showData();
         else store.set({ status: 'empty' });
       } catch (error) {
@@ -79,8 +86,7 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       store.set({ importing: true });
       try {
         const { dataset, entries, accounts, removedDuplicates } = await api.importFile(file);
-        store.set({ accounts });
-        setData({ imported: dataset.transactions, meta: dataset.meta, entries });
+        setData({ imported: dataset.transactions, meta: dataset.meta, entries, accounts });
         showData();
         const duplicates = removedDuplicates === 1
           ? ' · 1 movimento inserito a mano era già nell’export ed è stato tolto'
@@ -171,6 +177,7 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     // `recurring`: the entry is a recurrence, or the new transaction starts as a recurring one.
     // An occurrence of a recurring transaction opens the recurrence it comes from.
     openEntryForm(entry = null, { recurring = false } = {}) {
+      if (entry?.origin === 'topup') return actions.openTopUpForm(store.get().topUps.find((t) => t.id === entry.topUpId) ?? null);
       const state = store.get();
       if (state.status === 'empty') showData();
       const occurrence = entry?.origin === 'recurring';
@@ -230,14 +237,53 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       }
     },
 
+    // `topUp`: the top-up to edit, or null for a new one.
+    openTopUpForm(topUp = null) {
+      const state = store.get();
+      if (state.status === 'empty') showData();
+      store.set({ topUpDraft: { token: Date.now(), topUp } });
+      navigate('accounts');
+    },
+
+    async saveTopUp(id, input) {
+      try {
+        const previous = id && store.get().topUps.find((t) => t.id === id);
+        const topUps = id ? await api.updateTopUp(id, input, previous ? settlementOf(previous) : {}) : await api.addTopUp(input);
+        setData({ topUps });
+        const added = !id && topUps.at(-1);
+        const now = added && selectAccountSummary(store.get()).rows.find((row) => row.name === added.toAccount);
+        const balance = now ? ` · ${now.name}: ${formatEUR(now.current)}` : '';
+        showToast(`${id ? 'Ricarica automatica aggiornata' : 'Ricarica automatica aggiunta'}${balance}`);
+        return true;
+      } catch (error) {
+        showToast(error.message, { tone: 'error' });
+        return false;
+      }
+    },
+
+    async deleteTopUp(id) {
+      try {
+        setData({ topUps: await api.deleteTopUp(id) });
+        showToast('Ricarica automatica eliminata');
+        return true;
+      } catch (error) {
+        showToast(error.message, { tone: 'error' });
+        return false;
+      }
+    },
+
+    // A balance typed by hand includes the top-ups so far: they are settled first, so they keep their amount.
     async saveAccount(id, input) {
       try {
         if (id) {
-          const { accounts, entries, recurrences } = await api.updateAccount(id, input);
-          store.set({ accounts });
-          setData({ entries, recurrences });
+          const state = store.get();
+          const name = state.accounts.find((account) => account.id === id)?.name;
+          const affected = 'balance' in input ? state.topUps.filter((topUp) => topUp.toAccount === name) : [];
+          if (affected.length) await api.settleTopUps(Object.fromEntries(affected.map((topUp) => [topUp.id, settlementOf(topUp)])));
+          const { accounts, entries, recurrences, topUps } = await api.updateAccount(id, input);
+          setData({ accounts, entries, recurrences, topUps });
         } else {
-          store.set({ accounts: await api.addAccount(input) });
+          setData({ accounts: await api.addAccount(input) });
         }
         if (store.get().status === 'empty') showData();
         showToast(id ? 'Conto aggiornato' : 'Conto aggiunto');
@@ -250,7 +296,7 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
 
     async deleteAccount(id) {
       try {
-        store.set({ accounts: await api.deleteAccount(id) });
+        setData({ accounts: await api.deleteAccount(id) });
         showToast('Conto eliminato');
         return true;
       } catch (error) {

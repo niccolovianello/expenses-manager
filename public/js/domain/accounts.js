@@ -1,8 +1,8 @@
 import { cleanText, parseAmount } from './entries.js';
 
 // Accounts with a balance typed by hand. The balance is the truth at the moment it was set
-// (`balanceAt`): manual transactions entered after that moment and occurrences of recurring ones
-// happened after it move it; earlier ones are already part of it. The export has no times, so for
+// (`balanceAt`): manual transactions entered after that moment, occurrences of recurring ones and
+// automatic top-ups happened after it move it; earlier ones are already part of it. The export has no times, so for
 // imported transactions the account remembers what they added up to when the balance was set
 // (`exportBase`): whatever the export adds or takes away since then moves the balance.
 export const ACCOUNT_ICONS = {
@@ -51,7 +51,7 @@ export function entryEffects(entry) {
   return [];
 }
 
-const isEntered = (entry) => entry.origin === 'manual' || entry.origin === 'recurring';
+const isEntered = (entry) => entry.origin === 'manual' || entry.origin === 'recurring' || entry.origin === 'topup';
 const countsFor = (account, entry) => isEntered(entry) && entry.createdAt > account.balanceAt;
 
 function effectOn(name, entries, include = () => true) {

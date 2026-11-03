@@ -1,6 +1,7 @@
 import { importExport } from '../import/index.js';
 import { duplicateKey, normalizeEntry } from '../domain/entries.js';
 import { normalizeRecurrence } from '../domain/recurring.js';
+import { normalizeTopUp, renameTopUp } from '../domain/topups.js';
 import { anchorExport, exportEffect, foldEntries, normalizeAccount, round2 } from '../domain/accounts.js';
 import { emptyCategorization, mutations, sanitizeCategorization } from './categorization-store.js';
 
@@ -9,16 +10,18 @@ const CATEGORIZATION = 'categorization';
 const ENTRIES = 'entries';
 const ACCOUNTS = 'accounts';
 const RECURRING = 'recurring';
+const TOPUPS = 'topups';
 const SEEDED = 'account-seed';
 const SEEDED_RECURRING = 'recurring-seed';
 
 // Access to the app's data on top of an encrypted store with read(name) / write(name, value).
-// Five containers: the last imported export, manually entered transactions, recurring ones,
-// rules and overrides, accounts.
+// Six containers: the last imported export, manually entered transactions, recurring ones,
+// rules and overrides, accounts, automatic top-ups.
 export function createRepository(storage) {
   let categorization = null;
   let entries = null;
   let recurrences = null;
+  let topUps = null;
   // undefined: not read yet; null: accounts never set up / nothing imported yet.
   let accounts;
   let dataset;
@@ -37,6 +40,11 @@ export function createRepository(storage) {
   async function loadRecurrences() {
     if (!recurrences) recurrences = (await storage.read(RECURRING)) ?? [];
     return recurrences;
+  }
+
+  async function loadTopUps() {
+    if (!topUps) topUps = (await storage.read(TOPUPS)) ?? [];
+    return topUps;
   }
 
   async function loadDataset() {
@@ -85,6 +93,13 @@ export function createRepository(storage) {
     return next;
   });
 
+  const mutateTopUps = (change) => serial(async () => {
+    const next = change(structuredClone(await loadTopUps()));
+    await storage.write(TOPUPS, next);
+    topUps = next;
+    return next;
+  });
+
   const writeAccounts = async (next) => {
     await storage.write(ACCOUNTS, next);
     accounts = next;
@@ -107,6 +122,15 @@ export function createRepository(storage) {
   }
 
   const validRecurrence = (input, previous = null) => validEntry(input, previous, normalizeRecurrence);
+
+  // Top-ups use the accounts of the Conti section only: one that is not there has no balance to bring back.
+  async function validTopUp(input) {
+    const { topUp, error } = normalizeTopUp(input);
+    if (error) throw new Error(error);
+    const names = new Set(((await loadAccounts()) ?? []).map((account) => account.name));
+    if (!names.has(topUp.account) || !names.has(topUp.toAccount)) throw new Error('Scegli un conto dall’elenco dei conti');
+    return topUp;
+  }
 
   function validAccount(input, list, id = null) {
     const { account, error } = normalizeAccount(input, list.filter((other) => other.id !== id));
@@ -138,6 +162,7 @@ export function createRepository(storage) {
     entries: loadEntries,
     recurrences: loadRecurrences,
     accounts: loadAccounts,
+    topUps: loadTopUps,
 
     // Manual transactions that now also appear in the export are removed, so they are not counted twice.
     async importFile(file) {
@@ -207,6 +232,31 @@ export function createRepository(storage) {
       });
     },
 
+    async addTopUp(input) {
+      const topUp = await validTopUp(input);
+      return mutateTopUps((list) => [...list, { id: `t-${crypto.randomUUID()}`, createdAt: new Date().toISOString(), ...topUp }]);
+    },
+
+    // `settlement` ({ settled, settledUntil }): the top-ups so far, kept as they are (see domain/topups.js).
+    async updateTopUp(id, input, settlement = {}) {
+      const topUp = await validTopUp(input);
+      return mutateTopUps((list) => {
+        const index = entryIndex(list, id);
+        list[index] = { ...list[index], ...topUp, ...settlement, updatedAt: new Date().toISOString() };
+        return list;
+      });
+    },
+
+    // `settlements`: { [id]: { settled, settledUntil } }.
+    settleTopUps: (settlements) => mutateTopUps((list) => list.map((topUp) => ({ ...topUp, ...settlements[topUp.id] }))),
+
+    deleteTopUp(id) {
+      return mutateTopUps((list) => {
+        list.splice(entryIndex(list, id), 1);
+        return list;
+      });
+    },
+
     // Adds the initial accounts not there yet, next to the existing ones. Each one is added once:
     // an account deleted later does not come back, one with the same name is left as it is.
     seedAccounts: (inputs) => serial(async () => {
@@ -267,7 +317,8 @@ export function createRepository(storage) {
       });
       const nextEntries = renamed ? await mutateEntries((list) => renameIn(list, renamed)) : await loadEntries();
       const nextRecurrences = renamed ? await mutateRecurrences((list) => renameIn(list, renamed)) : await loadRecurrences();
-      return { accounts: nextAccounts, entries: nextEntries, recurrences: nextRecurrences };
+      const nextTopUps = renamed ? await mutateTopUps((list) => list.map((topUp) => renameTopUp(topUp, renamed))) : await loadTopUps();
+      return { accounts: nextAccounts, entries: nextEntries, recurrences: nextRecurrences, topUps: nextTopUps };
     },
 
     deleteAccount(id) {

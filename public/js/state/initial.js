@@ -21,6 +21,8 @@ export function createInitialState({ preset = DEFAULT_PRESET } = {}) {
     entries: [],
     recurrences: [],
     occurrences: [],
+    topUps: [],
+    topUpDraft: null,
     accounts: [],
     entryDraft: null,
     meta: null,

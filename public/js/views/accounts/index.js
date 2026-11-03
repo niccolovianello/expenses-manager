@@ -5,6 +5,8 @@ import { watch } from '../../state/store.js';
 import { selectAccountSummary } from '../../state/selectors.js';
 import { emptyState } from '../../components/common.js';
 import { mountAccountForm } from './account-form.js';
+import { mountTopUpForm } from './topup-form.js';
+import { mountTopUpList } from './topup-list.js';
 import { accountColor } from '../../domain/accounts.js';
 
 export const accountMark = (account, size = 36) => html`<span class="account-mark" style="--account-color: ${accountColor(account.color)}; --mark-size: ${size}px" aria-hidden="true">${icon(account.icon, { size: Math.round(size * 0.5) })}</span>`;
@@ -14,7 +16,7 @@ export function mountAccounts(element, store, actions) {
     <header class="view-head">
       <div class="view-heading">
         <h1 class="view-title">Conti</h1>
-        <p class="view-sub">Dopo che imposti un saldo, lo aggiornano i movimenti che inserisci qui e quelli ricorrenti. I movimenti importati dall’export non lo toccano: sono già dentro il saldo che hai scritto.</p>
+        <p class="view-sub">Dopo che imposti un saldo, lo aggiornano i movimenti che inserisci qui, quelli ricorrenti e le ricariche automatiche. I movimenti importati dall’export non lo toccano: sono già dentro il saldo che hai scritto.</p>
       </div>
       <button type="button" class="btn btn-primary" data-action="new-account">${icon('plus')}Nuovo conto</button>
     </header>
@@ -22,10 +24,14 @@ export function mountAccounts(element, store, actions) {
     <section class="panel">
       <div class="account-total" data-ref="total"></div>
       <div data-ref="list"></div>
-    </section>`);
+    </section>
+    <section class="panel entry-panel" data-ref="topUpForm" hidden></section>
+    <section class="panel" data-ref="topUps" hidden></section>`);
 
   const refs = collectRefs(element);
   const form = mountAccountForm(refs.form, store, actions);
+  mountTopUpForm(refs.topUpForm, store, actions);
+  mountTopUpList(refs.topUps, store, actions);
 
   element.addEventListener('click', (event) => {
     const action = event.target.closest('[data-action], [data-empty-action]');
