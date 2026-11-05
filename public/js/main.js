@@ -27,9 +27,7 @@ function startApp(session) {
   };
   startIdleLock(appConfig.idleLockMinutes, lock);
 
-  // On the phone it opens on the current month: a quick glance, not a year-long analysis.
-  const phone = window.matchMedia('(max-width: 860px)').matches;
-  const store = createStore(createInitialState(phone ? { preset: 'month' } : {}));
+  const store = createStore(createInitialState());
   let pushNext = false;
   const actions = createActions(store, createRepository(session.storage), { lock, markHistory: () => { pushNext = true; } });
 

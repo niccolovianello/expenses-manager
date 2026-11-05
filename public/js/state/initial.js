@@ -10,7 +10,7 @@ export const DEFAULT_TX_FILTERS = {
   limit: 100,
 };
 
-// `preset`: the period the app opens on (the current month on the phone).
+// `preset`: the period the app opens on (the current month by default).
 export function createInitialState({ preset = DEFAULT_PRESET } = {}) {
   return {
     status: 'loading',

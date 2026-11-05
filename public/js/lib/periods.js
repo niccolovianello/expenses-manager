@@ -30,7 +30,7 @@ export const PRESETS = [
   { id: 'all', label: 'Tutto', range: (today, extent) => extent ?? { from: startOfYear(today), to: today } },
 ];
 
-export const DEFAULT_PRESET = '12m';
+export const DEFAULT_PRESET = 'month';
 
 export const GRANULARITIES = [
   { id: 'auto', label: 'Automatico' },
