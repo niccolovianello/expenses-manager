@@ -12,4 +12,6 @@ export const appConfig = {
   accountEmail: 'owner@spese.niccolovianello.invalid',
   // Minutes without interaction before the automatic lock (0 to disable it).
   idleLockMinutes: 15,
+  // Hours an unlock is remembered across page reloads (0 to ask for the code on every load).
+  rememberHours: 24,
 };

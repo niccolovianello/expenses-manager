@@ -1,6 +1,7 @@
-import { getFirebase, signIn, signOutOf, doc, getDoc, setDoc, serverTimestamp } from './firebase.js';
+import { getFirebase, restoredUser, signIn, signOutOf, doc, getDoc, setDoc, serverTimestamp } from './firebase.js';
 import { deriveAuthPassword, deriveVaultKey, fromBase64, PBKDF2_ITERATIONS, randomBytes, toBase64 } from './crypto.js';
 import { createVaultStorage } from './storage.js';
+import { forgetSession, recallSession, rememberSession } from './remember.js';
 
 const AUTH_ERRORS = {
   'auth/invalid-credential': 'Codice non valido',
@@ -26,6 +27,27 @@ async function loadOrCreateProfile(db, uid) {
   return profile;
 }
 
+// Locking forgets the remembered key as well as signing out.
+const openSession = (auth, db, uid, key) => ({
+  storage: createVaultStorage({ db, uid, key }),
+  lock: async () => {
+    await forgetSession();
+    await signOutOf(auth);
+  },
+});
+
+// Reopens a session remembered by a previous unlock, without the code. Null when there is none,
+// it has expired, or Firebase no longer has the same user signed in: the code is then needed.
+export async function resume(config) {
+  if (!(config.rememberHours > 0)) return null;
+  const { auth, db } = getFirebase(config.firebase);
+  const [remembered, user] = await Promise.all([recallSession(), restoredUser(auth).catch(() => null)]);
+  if (remembered && user?.uid === remembered.uid) return openSession(auth, db, user.uid, remembered.key);
+  await forgetSession();
+  if (user) await signOutOf(auth).catch(() => {});
+  return null;
+}
+
 // Verifies the code with Firebase and derives the key: the code is not kept.
 export async function unlock(code, config) {
   const { auth, db } = getFirebase(config.firebase);
@@ -40,10 +62,8 @@ export async function unlock(code, config) {
   try {
     const profile = await loadOrCreateProfile(db, uid);
     const key = await deriveVaultKey(code, fromBase64(profile.salt), profile.iterations);
-    return {
-      storage: createVaultStorage({ db, uid, key }),
-      lock: () => signOutOf(auth),
-    };
+    if (config.rememberHours > 0) await rememberSession({ uid, key }, config.rememberHours).catch(() => {});
+    return openSession(auth, db, uid, key);
   } catch (error) {
     await signOutOf(auth);
     throw new Error(error.code === 'permission-denied'

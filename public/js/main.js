@@ -1,5 +1,5 @@
 import { appConfig } from './config.js';
-import { isConfigured, unlock } from './vault/session.js';
+import { isConfigured, resume, unlock } from './vault/session.js';
 import { startIdleLock } from './vault/idle-lock.js';
 import { createRepository } from './data/repository.js';
 import { createStore } from './state/store.js';
@@ -18,8 +18,8 @@ import { mountAccounts } from './views/accounts/index.js';
 
 const byId = (id) => document.getElementById(id);
 
-// Locking means signing out of Firebase and reloading the page:
-// the key and decrypted data exist only in memory and are lost with it.
+// Locking means forgetting the remembered key, signing out of Firebase and reloading the page:
+// the decrypted data exists only in memory and is lost with it.
 function startApp(session) {
   const lock = async () => {
     await session.lock().catch(() => {});
@@ -64,13 +64,24 @@ function startApp(session) {
   actions.load();
 }
 
-mountLogin(byId('login'), {
-  configured: isConfigured(appConfig),
-  accountEmail: appConfig.accountEmail,
-  async onSubmit(code) {
-    const session = await unlock(code, appConfig);
-    byId('login').hidden = true;
-    byId('app').hidden = false;
-    startApp(session);
-  },
-});
+const showApp = (session) => {
+  byId('login').hidden = true;
+  byId('app').hidden = false;
+  startApp(session);
+};
+
+const showLogin = () => {
+  byId('login').hidden = false;
+  mountLogin(byId('login'), {
+    configured: isConfigured(appConfig),
+    accountEmail: appConfig.accountEmail,
+    async onSubmit(code) {
+      showApp(await unlock(code, appConfig));
+    },
+  });
+};
+
+// A recent unlock is remembered (config.rememberHours): reloading the page skips the code.
+const remembered = isConfigured(appConfig) ? await resume(appConfig).catch(() => null) : null;
+if (remembered) showApp(remembered);
+else showLogin();

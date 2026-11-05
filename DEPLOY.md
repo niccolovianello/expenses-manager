@@ -10,8 +10,8 @@ The site is static (the `public/` folder) and is published at
 | **Secret code** | Never leaves the browser and is never stored. Two independent secrets are derived from it with PBKDF2 (600,000 iterations). |
 | **Firebase Authentication** | A single email/password user. The password is *derived* from the code, so Firebase never sees the code itself. Sign-ups are disabled. |
 | **Firestore rules** | `users/{uid}/**` can be read and written only by that user; everything else is closed (`firestore.rules`). Without logging in, the API returns `permission-denied`. |
-| **Client-side encryption** | Movements, rules and corrections are compressed and encrypted with AES-GCM 256 before upload. The key comes from the code plus a random salt, and exists only in memory. Firestore holds only ciphertext. |
-| **Session** | Kept in memory only: reloading the page or 15 minutes of inactivity locks the app. |
+| **Client-side encryption** | Movements, rules and corrections are compressed and encrypted with AES-GCM 256 before upload. The key comes from the code plus a random salt, and never leaves the browser. Firestore holds only ciphertext. |
+| **Session** | An unlock is remembered for 24 hours (`rememberHours`), so reloading the page does not ask for the code. The data key is kept in the browser's IndexedDB as a non-extractable key; the code itself is never stored. **Blocca** or 15 minutes of inactivity locks the app and forgets the session. |
 
 What is visible in developer tools **without the code**: the app's source and the public Firebase configuration (normal and harmless). No data.
 
