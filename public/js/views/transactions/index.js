@@ -12,6 +12,7 @@ import { transactionRow } from './row.js';
 import { startNewCategory } from './new-category.js';
 import { mountEntryForm } from './entry-form.js';
 import { mountRecurringList } from './recurring-list.js';
+import { mountExportPanel } from './export-panel.js';
 
 const KINDS = [
   { id: 'all', label: 'Tutti' },
@@ -38,8 +39,12 @@ export function mountTransactions(element, store, actions) {
         <h1 class="view-title">Movimenti</h1>
         <p class="view-sub" data-ref="sub"></p>
       </div>
-      <button type="button" class="btn btn-primary" data-action="new-entry">${icon('plus')}Nuovo movimento</button>
+      <div class="view-actions">
+        <button type="button" class="btn btn-secondary" data-action="export" data-ref="exportBtn" aria-expanded="false" aria-controls="export-panel">${icon('download')}Esporta CSV</button>
+        <button type="button" class="btn btn-primary" data-action="new-entry">${icon('plus')}Nuovo movimento</button>
+      </div>
     </header>
+    <section class="panel export-panel" id="export-panel" data-ref="export" hidden></section>
     <section class="panel entry-panel" data-ref="entry" hidden></section>
     <section class="panel" data-ref="recurring" hidden></section>
     <section class="panel panel-flush">
@@ -68,6 +73,12 @@ export function mountTransactions(element, store, actions) {
   const refs = collectRefs(element);
   mountEntryForm(refs.entry, store, actions);
   mountRecurringList(refs.recurring, store, actions);
+  const exportPanel = mountExportPanel(refs.export, store);
+  const syncExportButton = () => refs.exportBtn.setAttribute('aria-expanded', String(exportPanel.isOpen));
+  refs.export.addEventListener('export-closed', () => {
+    syncExportButton();
+    refs.exportBtn.focus({ preventScroll: true });
+  });
   const phone = window.matchMedia('(max-width: 640px)');
   let rowsById = new Map();
   let openId = null;
@@ -115,6 +126,11 @@ export function mountTransactions(element, store, actions) {
       openId = openId === tx.id ? null : tx.id;
       paint(store.get());
       return element.querySelector(`tr[data-id="${CSS.escape(tx.id)}"] [data-action="toggle-row"]`)?.focus({ preventScroll: true });
+    }
+    if (action === 'export') {
+      if (exportPanel.isOpen) exportPanel.close();
+      else exportPanel.open();
+      return syncExportButton();
     }
     if (action === 'new-entry') return actions.openEntryForm();
     if (action === 'edit-entry' && tx) return actions.openEntryForm(tx);
