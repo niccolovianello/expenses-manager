@@ -178,3 +178,17 @@ export function enumerateBuckets(range, granularity) {
   }
   return buckets;
 }
+
+// What is still to come in "Oggi", "Questa settimana" or "Questo mese": today's movements are
+// already among the transactions, so it starts tomorrow. On "Oggi" it is tomorrow alone.
+// Null for any other period, once it has been stepped away from today, or when nothing is left
+// (a Sunday's week, the last day of the month).
+const PERIOD_ENDS = { today: (tomorrow) => tomorrow, week: (_, today) => addDays(startOfWeek(today), 6), month: (_, today) => endOfMonth(today) };
+
+export function remainingRange(period, today) {
+  const end = PERIOD_ENDS[period.preset];
+  if (!end || period.to !== today) return null;
+  const from = addDays(today, 1);
+  const to = end(from, today);
+  return from <= to ? { from, to } : null;
+}

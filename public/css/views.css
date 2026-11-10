@@ -915,3 +915,14 @@ fieldset.field .field-label { margin-bottom: var(--space-1); padding: 0; }
   .recurring-row { grid-template-columns: auto minmax(0, 1fr) auto; padding-inline: 0; }
   .recurring-account { display: none; }
 }
+
+/* Recurring movements still to come in the current day, week or month (overview).
+   The totals stay in view when the list is closed. */
+.panel-head:has(+ .upcoming-body[hidden]) { margin-bottom: 0; }
+.upcoming-totals { display: flex; gap: var(--space-5); margin: 0; text-align: right; }
+.upcoming-totals dt { color: var(--text-3); font-size: var(--fs-s); }
+.upcoming-totals dd { margin: 0; font-weight: 650; text-align: inherit; }
+
+@media (max-width: 640px) {
+  .upcoming-totals { text-align: left; }
+}

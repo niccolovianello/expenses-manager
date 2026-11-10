@@ -5,11 +5,13 @@ import { mountTrendPanel } from './trend-panel.js';
 import { mountCategoryPanel } from './category-panel.js';
 import { mountCashflowPanel } from './cashflow-panel.js';
 import { mountTopPanel } from './top-panel.js';
+import { mountUpcomingPanel } from './upcoming-panel.js';
 
 export function mountOverview(element, store, actions) {
   render(element, html`
     <header class="view-head" data-ref="header"></header>
     <section class="panel summary" data-ref="summary" aria-label="Riepilogo del periodo"></section>
+    <section class="panel upcoming" data-ref="upcoming" hidden></section>
     <div class="grid grid-main">
       <section class="panel" data-ref="trend"></section>
       <section class="panel" data-ref="categories"></section>
@@ -26,4 +28,5 @@ export function mountOverview(element, store, actions) {
   mountCategoryPanel(refs.categories, store, actions);
   mountCashflowPanel(refs.cashflow, store, actions);
   mountTopPanel(refs.top, store, actions);
+  mountUpcomingPanel(refs.upcoming, store, actions);
 }

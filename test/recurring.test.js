@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { expandRecurrences, nextOccurrence, normalizeRecurrence, occurrenceDates } from '../public/js/domain/recurring.js';
+import { expandRecurrences, nextOccurrence, normalizeRecurrence, occurrenceDates, occurrencesBetween } from '../public/js/domain/recurring.js';
 import { accountSummary } from '../public/js/domain/accounts.js';
 import { categorize } from '../public/js/domain/categorize.js';
 import { createRepository } from '../public/js/data/repository.js';
@@ -73,4 +73,12 @@ test('the repository seeds each recurrence once, by description', async () => {
   await repo.deleteRecurrence(list.find((r) => r.comment === 'Netflix').id);
   list = await repo.seedRecurrences([rent, { ...rent, comment: 'Netflix', amount: 13 }, { ...rent, comment: 'affitto' }]);
   assert.deepEqual(list.map((r) => r.comment), ['Affitto']);
+});
+
+test('occurrences between two dates are grouped by recurrence, the soonest first', () => {
+  const gym = { ...rent, frequency: 'weekly', date: '2026-10-05', comment: 'Palestra', endDate: '2026-11-20' };
+  const found = occurrencesBetween([rent, gym], { from: '2026-11-11', to: '2026-11-30' });
+  assert.deepEqual(found.map(({ recurrence, dates }) => [recurrence.comment, dates]),
+    [['Palestra', ['2026-11-16']], ['Affitto', ['2026-11-30']]]);
+  assert.deepEqual(occurrencesBetween([rent], { from: '2026-11-11', to: '2026-11-29' }), []);
 });

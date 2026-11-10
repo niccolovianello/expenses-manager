@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { comparisonRange, enumerateBuckets, matchingPreset, presetRange, resolveGranularity, shiftRange, stepRange, stepUnit, wholePeriod } from '../public/js/lib/periods.js';
+import { comparisonRange, enumerateBuckets, matchingPreset, presetRange, remainingRange, resolveGranularity, shiftRange, stepRange, stepUnit, wholePeriod } from '../public/js/lib/periods.js';
 
 const today = '2026-10-29';
 
@@ -87,4 +87,17 @@ test('a stepped period takes the name of the preset it matches, or of its month 
   assert.deepEqual(wholePeriod({ from: '2026-08-01', to: '2026-08-31' }), { unit: 'month', key: '2026-08-01' });
   assert.deepEqual(wholePeriod({ from: '2024-01-01', to: '2024-12-31' }), { unit: 'year', key: '2024-01-01' });
   assert.equal(wholePeriod({ from: '2026-08-01', to: '2026-08-20' }), null);
+});
+
+test('what is still to come in the current day, week or month starts tomorrow', () => {
+  const today = '2026-11-10';
+  const period = (preset, day = today) => ({ preset, ...presetRange(preset, day, null) });
+  assert.deepEqual(remainingRange(period('today'), today), { from: '2026-11-11', to: '2026-11-11' });
+  assert.deepEqual(remainingRange(period('week'), today), { from: '2026-11-11', to: '2026-11-15' });
+  assert.deepEqual(remainingRange(period('month'), today), { from: '2026-11-11', to: '2026-11-30' });
+  assert.equal(remainingRange(period('week', '2026-11-15'), '2026-11-15'), null);
+  assert.equal(remainingRange(period('month', '2026-11-30'), '2026-11-30'), null);
+  assert.equal(remainingRange(period('prev-month'), today), null);
+  assert.equal(remainingRange(period('ytd'), today), null);
+  assert.equal(remainingRange({ preset: 'month', from: '2026-10-01', to: '2026-10-31' }, today), null);
 });

@@ -82,3 +82,11 @@ export const recurrenceInput = (recurrence) => ({
   frequency: recurrence.frequency,
   endDate: recurrence.endDate,
 });
+
+// The recurrences with occurrences between `from` and `to`, each with those dates; the soonest first.
+export function occurrencesBetween(recurrences, { from, to }) {
+  return recurrences
+    .map((recurrence) => ({ recurrence, dates: occurrenceDates(recurrence, to).filter((date) => date >= from) }))
+    .filter(({ dates }) => dates.length)
+    .sort((a, b) => a.dates[0].localeCompare(b.dates[0]));
+}
