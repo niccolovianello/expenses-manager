@@ -6,6 +6,7 @@ import { describeTransaction } from '../../lib/aggregate.js';
 import { formatCount, formatDateShort } from '../../lib/format.js';
 import { watch } from '../../state/store.js';
 import { selectCategories, selectCategorized } from '../../state/selectors.js';
+import { fillCategorySelect, handleNewCategory, NEW_CATEGORY } from '../transactions/new-category.js';
 
 const EMPTY_DRAFT = { id: null, kind: 'expense', field: 'comment', operator: 'contains', value: '', category: '' };
 const EXAMPLES = 5;
@@ -61,8 +62,7 @@ export function mountRuleForm(element, store, actions) {
         <label class="field"><span class="field-label">Se il campo</span><select class="input" name="field">${options(RULE_FIELDS)}</select></label>
         <label class="field"><span class="field-label">Condizione</span><select class="input" name="operator">${options(RULE_OPERATORS)}</select></label>
         <label class="field field-wide"><span class="field-label">Testo</span><input class="input" name="value" placeholder="es. Dropbox" autocomplete="off" maxlength="100"></label>
-        <label class="field field-wide"><span class="field-label">Assegna la categoria</span><input class="input" name="category" list="rule-categories" placeholder="Scegli o scrivi una categoria" autocomplete="off" maxlength="60"></label>
-        <datalist id="rule-categories" data-ref="categories"></datalist>
+        <label class="field field-wide"><span class="field-label">Assegna la categoria</span><select class="input" name="category" data-ref="category"></select></label>
       </div>
       <div class="rule-preview" data-ref="preview" aria-live="polite"></div>
       <p class="field-error" data-ref="error" role="alert" hidden></p>
@@ -84,11 +84,12 @@ export function mountRuleForm(element, store, actions) {
     field: fields.field.value,
     operator: fields.operator.value,
     value: fields.value.value,
-    category: fields.category.value,
+    category: fields.category.value === NEW_CATEGORY ? '' : fields.category.value,
   });
 
   function fillForm() {
-    for (const name of ['kind', 'field', 'operator', 'value', 'category']) fields[name].value = draft[name] ?? '';
+    for (const name of ['kind', 'field', 'operator', 'value']) fields[name].value = draft[name] ?? '';
+    syncCategories(store.get(), draft.category ?? '');
     const editing = Boolean(draft.id);
     refs.title.textContent = editing ? 'Modifica regola' : 'Nuova regola';
     render(refs.submit, editing ? html`Salva modifiche` : html`${icon('plus')}Aggiungi regola`);
@@ -96,8 +97,8 @@ export function mountRuleForm(element, store, actions) {
     refs.error.hidden = true;
   }
 
-  function syncCategories(state) {
-    render(refs.categories, selectCategories(state)[fields.kind.value].map((name) => html`<option value="${name}"></option>`));
+  function syncCategories(state, value = refs.category.value) {
+    fillCategorySelect(refs.category, selectCategories(state)[fields.kind.value], value);
   }
 
   const refreshPreview = () => {
@@ -113,9 +114,15 @@ export function mountRuleForm(element, store, actions) {
     schedulePreview();
   });
   refs.form.addEventListener('change', (event) => {
-    if (event.target === fields.kind) syncCategories(store.get());
+    // An expense category is not an income one: switching kind keeps only a category the new kind has.
+    if (event.target === fields.kind) {
+      const names = selectCategories(store.get())[fields.kind.value];
+      syncCategories(store.get(), names.includes(refs.category.value) ? refs.category.value : '');
+    }
     schedulePreview();
   });
+
+  handleNewCategory(refs.category, refreshPreview);
 
   refs.cancel.addEventListener('click', () => {
     draft = { ...EMPTY_DRAFT };

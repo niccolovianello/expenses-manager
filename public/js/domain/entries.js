@@ -45,7 +45,7 @@ export function normalizeEntry(input = {}) {
   if (isTransfer && toAccount === account) return { error: 'I due conti del giroconto devono essere diversi', field: 'toAccount' };
 
   const category = isTransfer ? null : normalizeCategory(input.category);
-  if (!isTransfer && !category) return { error: 'Scegli o scrivi una categoria', field: 'category' };
+  if (!isTransfer && !category) return { error: 'Scegli una categoria', field: 'category' };
 
   return {
     entry: {

@@ -6,6 +6,7 @@ import { todayISO } from '../../lib/dates.js';
 import { watch } from '../../state/store.js';
 import { selectCategories } from '../../state/selectors.js';
 import { askInline } from '../../components/confirm.js';
+import { fillCategorySelect, handleNewCategory } from './new-category.js';
 
 const FIELDS = ['date', 'amount', 'account', 'toAccount', 'category', 'tag', 'comment', 'frequency', 'endDate'];
 const formatAmountInput = (amount) => (amount ? amount.toFixed(2).replace('.', ',') : '');
@@ -40,12 +41,11 @@ export function mountEntryForm(element, store, actions) {
         <label class="field"><span class="field-label">Importo (€)</span><input class="input input-amount" name="amount" inputmode="decimal" placeholder="0,00" autocomplete="off" required></label>
         <label class="field"><span class="field-label" data-ref="accountLabel">Conto</span><select class="input" name="account" required></select></label>
         <label class="field" data-ref="toAccountField"><span class="field-label">Al conto</span><select class="input" name="toAccount"></select></label>
-        <label class="field" data-ref="categoryField"><span class="field-label">Categoria</span><input class="input" name="category" list="entry-categories" placeholder="Scegli o scrivi" autocomplete="off"></label>
+        <label class="field" data-ref="categoryField"><span class="field-label">Categoria</span><select class="input" name="category" data-ref="category"></select></label>
         <label class="field"><span class="field-label">Tag <span class="field-optional">facoltativo</span></span><input class="input" name="tag" autocomplete="off" maxlength="60"></label>
         <label class="field field-full"><span class="field-label">Descrizione <span class="field-optional">facoltativa</span></span><input class="input" name="comment" autocomplete="off" maxlength="200" placeholder="es. Cena con amici"></label>
       </div>
       <p class="field-hint" data-ref="noAccounts" hidden>Non hai ancora conti: <a href="#/conti">creane uno nella sezione Conti</a>, poi torna qui.</p>
-      <datalist id="entry-categories" data-ref="categories"></datalist>
       <span class="field-error" id="entry-error" data-ref="error" role="alert" hidden></span>
       <div class="form-actions" data-ref="actions">
         <button type="submit" class="btn btn-primary" data-ref="submit"></button>
@@ -96,7 +96,7 @@ export function mountEntryForm(element, store, actions) {
     fillAccounts(fields.toAccount, names, fields.toAccount.value);
     refs.noAccounts.hidden = names.length > 0;
     const categories = kind === 'transfer' ? [] : selectCategories(state)[kind];
-    render(refs.categories, categories.map((name) => html`<option value="${name}"></option>`));
+    fillCategorySelect(refs.category, categories, refs.category.value);
   }
 
   // The error appears under the field to fix, which is marked and focused. With several fields
@@ -129,7 +129,7 @@ export function mountEntryForm(element, store, actions) {
     render(refs.frequency, frequencies.map(([value, label]) => html`<option value="${value}">${label}</option>`));
     refs.frequencyField.hidden = editing === 'entry';
     // The account selects get their options (and the value) from syncOptions, called by setKind.
-    for (const name of ['account', 'toAccount']) render(fields[name], html`<option value="${values[name] ?? ''}"></option>`);
+    for (const name of ['account', 'toAccount', 'category']) render(fields[name], html`<option value="${values[name] ?? ''}"></option>`);
     for (const name of FIELDS) fields[name].value = values[name] ?? '';
     fields.amount.value = formatAmountInput(values.amount);
     syncFrequency();
@@ -177,12 +177,17 @@ export function mountEntryForm(element, store, actions) {
 
   element.addEventListener('click', (event) => {
     const kindButton = event.target.closest('[data-kind]');
-    if (kindButton) setKind(kindButton.dataset.kind);
+    if (!kindButton || kindButton.dataset.kind === kind) return;
+    // An expense category is not an income one: switching kind keeps only a category the new kind has.
+    const next = kindButton.dataset.kind;
+    if (next !== 'transfer' && !selectCategories(store.get())[next].includes(refs.category.value)) refs.category.value = '';
+    setKind(next);
   });
   refs.close.addEventListener('click', close);
   refs.cancel.addEventListener('click', close);
   refs.form.addEventListener('input', () => showError(null));
   refs.frequency.addEventListener('change', syncFrequency);
+  handleNewCategory(refs.category, () => showError(null));
   refs.form.addEventListener('keydown', async (event) => {
     if (event.key !== 'Escape' || event.defaultPrevented || asking) return;
     if (!isDirty()) return close();
