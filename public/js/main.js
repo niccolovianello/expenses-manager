@@ -56,6 +56,10 @@ function startApp(session) {
   mountAccounts(byId('view-accounts'), store, actions);
   mountRules(byId('view-rules'), store, actions);
 
+  // A fresh load opens on the default period: it keeps the section from the address but not the
+  // period or category left there, which only Back and Forward restore.
+  const [path] = location.hash.split('?');
+  if (path !== location.hash) history.replaceState(null, '', path);
   startRouter(store, actions.applyLocation);
   store.subscribe((state, changed) => {
     if (!['route', 'period', 'focusCategory'].some((key) => changed.has(key))) return;
