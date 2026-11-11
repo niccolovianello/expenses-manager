@@ -685,6 +685,61 @@ th[aria-sort="descending"] .sort-btn { color: var(--accent-text); }
 .entry-form .form-actions { margin-top: 0; }
 .input-amount { font-variant-numeric: tabular-nums; }
 
+/* Tag picker: the tags already used, as chips; creating one is its own step */
+.tag-picker { gap: var(--space-2); }
+.tag-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 32px;
+}
+.tag-search { width: 100%; max-width: 22rem; margin-bottom: var(--space-2); }
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.tag-chips .chip {
+  min-height: 36px;
+  border-radius: var(--radius-l);
+  border-color: var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font-weight: 500;
+  cursor: pointer;
+}
+.tag-chips .chip[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+.tag-chips .chip-add { border-color: var(--accent); color: var(--accent-text); }
+.tag-chips .chip-more { border-style: dashed; color: var(--text-2); }
+.tag-empty { color: var(--text-3); font-size: var(--fs-s); }
+.tag-create {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 22rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.tag-create .field-hint.field-error { color: var(--bad); }
+.tag-create-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+@media (hover: hover) {
+  .tag-chips .chip:hover { border-color: var(--accent); }
+}
+
+@media (pointer: coarse) {
+  .tag-chips .chip { min-height: var(--tap); }
+}
+
 .field-optional {
   color: var(--text-3);
   font-weight: 450;

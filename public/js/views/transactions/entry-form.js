@@ -4,9 +4,10 @@ import { html, render, collectRefs } from '../../lib/html.js';
 import { icon } from '../../lib/icons.js';
 import { todayISO } from '../../lib/dates.js';
 import { watch } from '../../state/store.js';
-import { selectCategories } from '../../state/selectors.js';
+import { selectCategories, selectTags } from '../../state/selectors.js';
 import { askInline } from '../../components/confirm.js';
 import { fillCategorySelect, handleNewCategory } from './new-category.js';
+import { mountTagPicker } from './tag-picker.js';
 
 const FIELDS = ['date', 'amount', 'account', 'toAccount', 'category', 'tag', 'comment', 'frequency', 'endDate'];
 const formatAmountInput = (amount) => (amount ? amount.toFixed(2).replace('.', ',') : '');
@@ -42,7 +43,7 @@ export function mountEntryForm(element, store, actions) {
         <label class="field"><span class="field-label" data-ref="accountLabel">Conto</span><select class="input" name="account" required></select></label>
         <label class="field" data-ref="toAccountField"><span class="field-label">Al conto</span><select class="input" name="toAccount"></select></label>
         <label class="field" data-ref="categoryField"><span class="field-label">Categoria</span><select class="input" name="category" data-ref="category"></select></label>
-        <label class="field"><span class="field-label">Tag <span class="field-optional">facoltativo</span></span><input class="input" name="tag" autocomplete="off" maxlength="60"></label>
+        <div class="field field-full tag-picker" data-ref="tags"></div>
         <label class="field field-full"><span class="field-label">Descrizione <span class="field-optional">facoltativa</span></span><input class="input" name="comment" autocomplete="off" maxlength="200" placeholder="es. Cena con amici"></label>
       </div>
       <p class="field-hint" data-ref="noAccounts" hidden>Non hai ancora conti: <a href="#/conti">creane uno nella sezione Conti</a>, poi torna qui.</p>
@@ -55,6 +56,7 @@ export function mountEntryForm(element, store, actions) {
     </form>`);
 
   const refs = collectRefs(element);
+  const tagPicker = mountTagPicker(refs.tags);
   const fields = refs.form.elements;
   let kind = 'expense';
   let editingId = null;
@@ -97,6 +99,7 @@ export function mountEntryForm(element, store, actions) {
     refs.noAccounts.hidden = names.length > 0;
     const categories = kind === 'transfer' ? [] : selectCategories(state)[kind];
     fillCategorySelect(refs.category, categories, refs.category.value);
+    tagPicker.setTags(selectTags(state));
   }
 
   // The error appears under the field to fix, which is marked and focused. With several fields
@@ -132,6 +135,7 @@ export function mountEntryForm(element, store, actions) {
     for (const name of ['account', 'toAccount', 'category']) render(fields[name], html`<option value="${values[name] ?? ''}"></option>`);
     for (const name of FIELDS) fields[name].value = values[name] ?? '';
     fields.amount.value = formatAmountInput(values.amount);
+    tagPicker.reset(values.tag ?? '');
     syncFrequency();
     refs.title.textContent = editing === 'recurrence' ? 'Modifica movimento ricorrente' : editingId ? 'Modifica movimento' : 'Nuovo movimento';
     render(refs.submit, editingId ? html`Salva modifiche` : html`${icon('plus')}Aggiungi`);
@@ -232,7 +236,8 @@ export function mountEntryForm(element, store, actions) {
 
     if (editingId || recurring) return close();
     // Ready for the next one: only amount and details are cleared.
-    for (const name of ['amount', 'tag', 'comment']) fields[name].value = '';
+    for (const name of ['amount', 'comment']) fields[name].value = '';
+    tagPicker.reset();
     snapshot = JSON.stringify(readForm());
     fields.amount.focus();
   });

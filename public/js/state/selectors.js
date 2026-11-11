@@ -104,3 +104,14 @@ const transactionRowsOf = memo((categorized, period, account, filters) => {
 
 export const selectTransactionRows = (state) =>
   transactionRowsOf(selectCategorized(state), state.period, state.account, state.txFilters);
+
+// The tags already in use, most used first: the transaction form offers them to pick from.
+const tagsOf = memo((transactions, recurrences) => {
+  const counts = new Map();
+  for (const item of [...transactions, ...recurrences]) {
+    const tag = item.tag?.trim();
+    if (tag) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  }
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'it')).map(([tag]) => tag);
+});
+export const selectTags = (state) => tagsOf(state.transactions, state.recurrences);
