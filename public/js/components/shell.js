@@ -4,6 +4,7 @@ import { formatCount, formatDate } from '../lib/format.js';
 import { ROUTES, ROUTES_WITH_PERIOD } from '../router.js';
 import { watch } from '../state/store.js';
 import { selectExtent } from '../state/selectors.js';
+import { bindThemeToggle, themeToggle } from './theme-toggle.js';
 
 const NAV_ICONS = { overview: 'dashboard', transactions: 'list', accounts: 'wallet', rules: 'tags' };
 
@@ -16,7 +17,9 @@ export function mountShell({ root, nav, railActions, views, periodBar, sourceInf
   render(railActions, html`
     <button type="button" class="btn btn-ghost btn-sm" data-action="add-entry">${icon('plus')}<span>Nuovo movimento</span></button>
     ${importButton('Importa export', 'btn-ghost btn-sm')}
+    ${themeToggle()}
     <button type="button" class="btn btn-ghost btn-sm" data-action="lock">${icon('lock')}<span>Blocca</span></button>`);
+  bindThemeToggle(railActions);
   // On the phone the same navigation becomes the bottom bar, with "Nuovo" in the middle.
   const navLink = (route) => {
     const { hash, title, short } = ROUTES[route];

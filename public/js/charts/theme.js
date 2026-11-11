@@ -18,6 +18,4 @@ export function applyChartDefaults(Chart) {
   tooltip.footerFont = { weight: '600' };
 }
 
-export function onThemeChange(callback) {
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', callback);
-}
+export { onThemeChange } from '../lib/theme.js';

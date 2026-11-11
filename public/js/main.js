@@ -7,6 +7,7 @@ import { createInitialState } from './state/initial.js';
 import { createActions } from './state/actions.js';
 import { startRouter, syncHash } from './router.js';
 import { applyChartDefaults, onThemeChange } from './charts/theme.js';
+import { initTheme } from './lib/theme.js';
 import { mountLogin } from './components/login.js';
 import { mountToast } from './components/toast.js';
 import { mountShell } from './components/shell.js';
@@ -17,6 +18,8 @@ import { mountRules } from './views/rules/index.js';
 import { mountAccounts } from './views/accounts/index.js';
 
 const byId = (id) => document.getElementById(id);
+
+initTheme();
 
 // Locking means forgetting the remembered key, signing out of Firebase and reloading the page:
 // the decrypted data exists only in memory and is lost with it.

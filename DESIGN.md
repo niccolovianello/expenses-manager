@@ -162,7 +162,7 @@ components:
 
 Spese is the finance-tool category standard played straight: a calm, dense operating surface in the lineage of Revolut and YNAB, where the period filter scopes everything and the numbers are the interface. Cool-neutral grounds, white panels with hairline borders, one deep teal-blue accent for selection and primary action, and a fixed, validated categorical palette that follows each category everywhere it appears.
 
-Density is deliberate. Body text sits at 14px, labels and metadata at 13px and 12px, and every amount uses tabular numerals so columns align. Hierarchy comes from weight (450 / 550 / 650 on the system sans) and from three steps of text grey, never from decoration. The light scheme is the reference; a dark scheme follows the OS appearance automatically, with surfaces, accent and chart series re-stepped for the dark ground (confirmed by the owner).
+Density is deliberate. Body text sits at 14px, labels and metadata at 13px and 12px, and every amount uses tabular numerals so columns align. Hierarchy comes from weight (450 / 550 / 650 on the system sans) and from three steps of text grey, never from decoration. The light scheme is the reference; a dark scheme follows the OS appearance by default, with surfaces, accent and chart series re-stepped for the dark ground (confirmed by the owner). The owner can override it with the theme switch in the rail (added 2026-11-11 at the owner's request).
 
 The system refuses decoration, mosaics of identical KPI tiles, and gimmick charts. The summary is one panel divided by hairlines, the time series is a plain stacked bar chart, and the category breakdown is a ranked list with thin bars.
 
@@ -172,7 +172,7 @@ The system refuses decoration, mosaics of identical KPI tiles, and gimmick chart
 - Category colour is bound to the category, not to its rank in the current period.
 - Deltas are neutral grey; a trend arrow carries direction.
 - Flat white panels on a cool-grey ground, one soft shadow level plus one pop level.
-- Dark scheme follows `prefers-color-scheme`; light is the reference.
+- Dark scheme follows the OS appearance unless the owner picks one with the theme switch; light is the reference. `js/theme-init.js` sets `<html data-theme>` before first paint, and the dark tokens live under `:root[data-theme="dark"]`. Picking the scheme the OS already uses clears the stored choice, so the page follows the OS again.
 
 ## Colors
 
@@ -271,7 +271,8 @@ Restrained and compact.
 - **Shape:** gently rounded (8px), 36px tall; small variant 30px with 13px text.
 - **Primary:** accent fill, on-accent text, weight 550; hover deepens to accent-hover; disabled at 55% opacity.
 - **Secondary:** surface fill with border-strong outline; hover to surface-2.
-- **Ghost:** transparent, text-2; hover surface-2; pressed state (aria-pressed) uses accent-soft with accent-text.
+- **Ghost:** transparent, text-2; hover surface-2 (pointer devices only, so a tap never leaves a wash behind); pressed state (aria-pressed) uses accent-soft with accent-text.
+- **Theme switch:** a ghost small button in the rail actions, between Importa and Blocca (icon-only in the phone top bar). It names the scheme it switches to ("Tema scuro" / "Tema chiaro") and shows the matching Lucide moon or sun; on a switch the outgoing glyph turns and shrinks out as the other turns in, 240ms on the shared ease-out.
 - **Icon button:** 32px square, transparent, text-2; hover surface-2. Danger variant hovers to bad-soft / bad.
 - **Link button:** accent-text, 13px, underline on hover.
 - All transitions: 180ms on the shared ease-out curve.
@@ -333,7 +334,7 @@ A panel on Movimenti, above the filters: one row per recurring movement (repeat 
 - **Do** separate figures inside one panel with hairlines rather than splitting them into cards.
 - **Do** use 8px corners for controls and 12px for panels; 1px hairlines for every stroke.
 - **Do** use Lucide-style stroked SVG icons inline, one style across the interface.
-- **Do** step every new colour for the dark scheme inside the `prefers-color-scheme: dark` block.
+- **Do** step every new colour for the dark scheme inside the `:root[data-theme="dark"]` block in tokens.css.
 - **Do** confirm destructive steps inline in the form, and offer "Annulla" in the toast where a deletion can be undone.
 
 ### Don't:
