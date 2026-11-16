@@ -1,6 +1,6 @@
 # Plan: adding expenses from Telegram
 
-Status: steps 1–2 built (inbox crypto; app side with the Telegram panel in Conti and the review list in Movimenti). Next: Firebase setup (section 2), then the Worker.
+Status: steps 1–2 built (inbox crypto; app side with the Telegram panel in Conti and the review list in Movimenti). Step 3, the Firebase setup, is ready to apply by hand: rules in `firestore.rules`, instructions in DEPLOY.md (*Telegram bot*). Next: the Worker.
 
 Goal: send a message like *"pizza 18,50 ieri satispay"* to a private Telegram bot. Claude turns it into a transaction, and the transaction shows up in **Movimenti** the next time the app is unlocked. Your existing data stays readable only by the browser.
 
@@ -42,19 +42,11 @@ Test: `test/inbox.test.js` round-trips seal → open, rejects a doc-ID swap, and
 
 ## 2. Firebase changes
 
-1. **Bot identity.** In Authentication, add a second user, e.g. `bot@spese.niccolovianello.invalid`, with a long random password. Sign-ups stay disabled. Write down its UID.
-2. **Rules** (`firestore.rules`). The current `users/{uid}/{document=**}` rule already lets the owner do everything and gives the bot nothing. Add:
-   ```
-   match /users/{uid}/inbox/{id} {
-     allow create: if request.auth.uid == '<BOT_UID>' && uid == '<OWNER_UID>'
-       && request.resource.data.keys().hasOnly(['v', 'epk', 'iv', 'data', 'createdAt'])
-       && request.resource.data.data is string && request.resource.data.data.size() < 16000
-       && request.resource.data.createdAt == request.time;
-   }
-   match /users/{uid}/bot/hints {
-     allow read: if request.auth.uid == '<BOT_UID>' && uid == '<OWNER_UID>';
-   }
-   ```
+1. **Bot identity.** In Authentication, add a second user, `bot@spese.niccolovianello.invalid`, with a long random password. Sign-ups stay disabled.
+2. **Rules** (`firestore.rules`). The current `users/{uid}/{document=**}` rule already lets the owner do everything and gives the bot nothing. The new rules recognize the bot by its email (so no user id is written in this public repository) and let it:
+   - `create` in `users/{uid}/inbox/{id}`, only for a user whose profile document exists, only with the fields `v`, `epk`, `iv`, `data`, `createdAt`, with `createdAt` equal to the server time and `data` at most 16,000 characters;
+   - `read` `users/{uid}/bot/hints`.
+
    The bot can't read, update or delete inbox items. The owner keeps full access through the existing rule.
 3. **API key.** The browser key only accepts requests from the site's referrers, so create a second API key for the Worker. Restrict it to the Identity Toolkit and Cloud Firestore APIs (a Worker has no referrer).
 

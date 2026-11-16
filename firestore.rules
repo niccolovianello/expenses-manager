@@ -8,5 +8,35 @@ service cloud.firestore {
     match /users/{uid}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
+
+    // The Telegram bot (TELEGRAM-BOT.md) signs in as a second Firebase user, created by hand in the
+    // console. It is recognized by its email, so no user id has to be written here.
+    function isBot() {
+      return request.auth != null
+        && request.auth.token.email == 'bot@spese.niccolovianello.invalid'
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    // The bot can only add sealed items to the inbox of an existing user: it cannot read, change or
+    // delete them, nor touch anything else. The fields are the ones sealInboxItem returns, at the
+    // server's time, and no larger than MAX_INBOX_DATA (public/js/vault/inbox-crypto.js).
+    match /users/{uid}/inbox/{id} {
+      allow create: if isBot()
+        && id.size() <= 64
+        && exists(/databases/$(database)/documents/users/$(uid))
+        && request.resource.data.keys().hasOnly(['v', 'epk', 'iv', 'data', 'createdAt'])
+        && request.resource.data.keys().hasAll(['v', 'epk', 'iv', 'data', 'createdAt'])
+        && request.resource.data.v == 1
+        && request.resource.data.epk is string && request.resource.data.epk.size() <= 120
+        && request.resource.data.iv is string && request.resource.data.iv.size() <= 32
+        && request.resource.data.data is string && request.resource.data.data.size() <= 16000
+        && request.resource.data.createdAt == request.time;
+    }
+
+    // Account and category names, written in plain text by the app for the bot (a deliberate choice,
+    // see TELEGRAM-BOT.md): the bot can read them, nothing else.
+    match /users/{uid}/bot/hints {
+      allow read: if isBot();
+    }
   }
 }

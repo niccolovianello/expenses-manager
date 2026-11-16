@@ -61,3 +61,57 @@ npm test
 
 - **New code**: recompute the password with `npm run derive-password`, update it on the user in Authentication, then delete the `users/{uid}` document and its `blobs` subcollection on Firestore, and re-import the export (rules and corrections are encrypted with the old key).
 - **Data deletion**: delete `users/{uid}` and `users/{uid}/blobs/*` from the Firestore console.
+
+## Telegram bot (optional)
+
+Expenses written to a Telegram bot reach the app through an encrypted inbox; how it works is in [TELEGRAM-BOT.md](TELEGRAM-BOT.md). This part sets up Firebase for it. The Worker that runs the bot comes later.
+
+### 1. The bot's Firebase user
+
+1. Make a long random password for the bot (it is stored only in the bot's configuration, never in the repository):
+   ```bash
+   openssl rand -base64 32
+   ```
+2. **Authentication → Users → Add user**: email `bot@spese.niccolovianello.invalid` (exactly this: the rules recognize the bot by it), password from step 1. Adding a user here works even with sign-ups disabled.
+
+### 2. Rules
+
+**Firestore → Rules**: paste the current contents of `firestore.rules` and **Publish**. Besides the existing rule, they let the bot:
+- create items in `users/{uid}/inbox`, only with the fields and sizes the app expects, and only for a user that already exists;
+- read `users/{uid}/bot/hints`.
+
+The bot cannot read, change or delete anything else, inbox items included.
+
+The **Rules Playground** on the same page can check them before publishing: simulate a `create` on `users/<your uid>/inbox/test` authenticated as the bot (provider `password`, email above), then a `get` on `users/<your uid>/blobs/entries` as the bot, which must be denied.
+
+### 3. An API key for the bot
+
+The browser key only accepts requests from the site, and a Worker sends none of those headers, so the bot gets its own key.
+
+1. https://console.cloud.google.com/apis/credentials (same project) → **Create credentials → API key**. Name it e.g. `telegram-bot`.
+2. **Application restrictions**: none (the Worker has no fixed address).
+3. **API restrictions → Restrict key**: only **Identity Toolkit API** and **Cloud Firestore API**.
+
+### 4. The inbox key and your user id
+
+Open the app, unlock it, go to **Conti → Telegram → Collega Telegram**. Copy the two values shown.
+
+### 5. Try it without Telegram
+
+Create `bot/.dev.vars` (git-ignored; the Worker will read the same file when run locally):
+```
+FIREBASE_API_KEY="key from step 3"
+FIREBASE_PROJECT_ID="money-manager-79b34"
+BOT_EMAIL="bot@spese.niccolovianello.invalid"
+BOT_PASSWORD="password from step 1"
+OWNER_UID="ID utente from Conti"
+INBOX_PUBLIC_KEY='{"kty":"EC",...}  (Chiave pubblica from Conti, as copied)'
+```
+Then put a test transaction and an incomplete one in the inbox, the way the bot will:
+```bash
+node --env-file=bot/.dev.vars scripts/fake-inbox-item.js 'prova 1,23' '{"amount":1.23,"account":"<one of your accounts>","category":"<one of your categories>","comment":"Prova Telegram"}'
+node --env-file=bot/.dev.vars scripts/fake-inbox-item.js 'prova senza conto' '{"amount":4.56,"account":null,"category":null}'
+```
+Reload the app: the first one is added (toast *1 movimento aggiunto da Telegram*), the second waits in **Movimenti → Da Telegram, da rivedere**. Delete the test transaction afterwards from its row.
+
+To take the bot's access away at any time: disable or delete its user in **Authentication → Users**.
