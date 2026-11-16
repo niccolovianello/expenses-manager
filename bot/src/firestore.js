@@ -67,5 +67,17 @@ export function createFirestoreClient(config) {
         throw error;
       }
     },
+
+    // users/{owner}/bot/hints, written by the app as one JSON string; null until the app has written it.
+    async readHints() {
+      const url = `${FIRESTORE}/${documents}/users/${config.ownerUid}/bot/hints?key=${encodeURIComponent(config.apiKey)}`;
+      try {
+        const body = await call(url, { headers: await authorized() }, 'Hints read');
+        return JSON.parse(body.fields?.json?.stringValue ?? 'null');
+      } catch (error) {
+        if (error.status === 'NOT_FOUND') return null;
+        throw error;
+      }
+    },
   };
 }

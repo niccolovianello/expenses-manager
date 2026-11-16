@@ -115,3 +115,49 @@ node --env-file=bot/.dev.vars scripts/fake-inbox-item.js 'prova senza conto' '{"
 Reload the app: the first one is added (toast *1 movimento aggiunto da Telegram*), the second waits in **Movimenti → Da Telegram, da rivedere**. Delete the test transaction afterwards from its row.
 
 To take the bot's access away at any time: disable or delete its user in **Authentication → Users**.
+
+### 6. The bot on Telegram
+
+In Telegram, talk to **@BotFather**: `/newbot`, pick a name and a username. It answers with the bot's **token**: keep it like a password.
+
+### 7. The Worker on Cloudflare
+
+The bot runs as a Cloudflare Worker (the free plan is enough), from the `bot/` folder.
+
+1. An Anthropic API key for the bot: https://console.anthropic.com → **API keys**. A spending limit on the workspace is a good idea; with Claude Haiku 5.5 each message costs a fraction of a cent.
+2. Install and log in:
+   ```bash
+   cd bot && npm install && npx wrangler login
+   ```
+   npm may refuse to run the install script of `workerd`. Deploying does not need it; only `npx wrangler dev` (running the bot locally) does: allow it with `npm install-scripts approve workerd` and install again.
+3. A secret for Telegram's requests, so only Telegram can call the Worker:
+   ```bash
+   openssl rand -hex 32
+   ```
+4. Store the secrets in the Worker, one at a time (each command asks for the value):
+   ```bash
+   npx wrangler secret put TELEGRAM_TOKEN           # from @BotFather
+   npx wrangler secret put TELEGRAM_WEBHOOK_SECRET  # from step 3
+   npx wrangler secret put ANTHROPIC_API_KEY
+   npx wrangler secret put FIREBASE_API_KEY         # the bot's key, section 3
+   npx wrangler secret put BOT_PASSWORD             # section 1
+   npx wrangler secret put OWNER_UID                # Conti → Telegram
+   npx wrangler secret put INBOX_PUBLIC_KEY         # Conti → Telegram, the whole {...}
+   ```
+   `MODEL`, `FIREBASE_PROJECT_ID` and `BOT_EMAIL` are not secret and are in `bot/wrangler.toml`.
+5. Deploy: `npm run deploy`. It prints the Worker's address, `https://spese-telegram-bot.<subdomain>.workers.dev`.
+6. Add `TELEGRAM_TOKEN` and `TELEGRAM_WEBHOOK_SECRET` to `bot/.dev.vars` too, then point Telegram at the Worker:
+   ```bash
+   npm run set-webhook -- https://spese-telegram-bot.<subdomain>.workers.dev
+   ```
+7. Write anything to the bot. Until it knows your chat, it only answers with your **chat id**: store it, and the Worker updates by itself:
+   ```bash
+   npx wrangler secret put ALLOWED_CHAT_ID
+   ```
+   From then on it ignores every other chat.
+
+### 8. First expense
+
+The bot needs the names of your accounts and categories: the app writes them (in plain text, names only) every time it is unlocked after **Collega Telegram**, and again whenever they change. So open the app once, then write to the bot: `pizza 18,50 ieri`. It answers with what it understood and an **Annulla** button; the next time you open the app the transaction is there.
+
+When something does not work, `npx wrangler tail` (from `bot/`) shows the Worker's logs live.

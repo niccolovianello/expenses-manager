@@ -1,4 +1,4 @@
-import { collection, deleteDoc, doc, getDoc, getDocs, writeBatch, serverTimestamp } from './firebase.js';
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, writeBatch, serverTimestamp } from './firebase.js';
 import { openJson, sealJson } from './crypto.js';
 
 // Base64 characters per document: stays under Firestore's 1 MiB limit.
@@ -52,5 +52,9 @@ export function createVaultStorage({ db, uid, key }) {
       },
       remove: (id) => deleteDoc(doc(db, 'users', uid, 'inbox', id)),
     },
+
+    // users/{uid}/bot/hints: account and category names for the bot, in PLAIN TEXT (a deliberate
+    // choice, see TELEGRAM-BOT.md). One JSON string, so the bot reads it without Firestore's typed values.
+    writeBotHints: (hints) => setDoc(doc(db, 'users', uid, 'bot', 'hints'), { json: JSON.stringify(hints), updatedAt: serverTimestamp() }),
   };
 }

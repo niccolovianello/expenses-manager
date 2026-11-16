@@ -1,0 +1,14 @@
+# Cloudflare Worker for the Telegram bot. Secrets are not here: set them with
+# `npx wrangler secret put NAME` (see DEPLOY.md, "Telegram bot"), and for local runs in .dev.vars.
+name = "spese-telegram-bot"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+MODEL = "claude-haiku-5-5"
+FIREBASE_PROJECT_ID = "money-manager-79b34"
+BOT_EMAIL = "bot@spese.niccolovianello.invalid"
+
+[observability]
+enabled = true

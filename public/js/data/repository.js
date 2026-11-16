@@ -302,6 +302,10 @@ export function createRepository(storage) {
       await storage.inbox?.remove(docId);
     },
 
+    async writeBotHints(hints) {
+      await storage.writeBotHints?.(hints);
+    },
+
     async updateEntry(id, input) {
       const previous = (await loadEntries()).find((candidate) => candidate.id === id);
       const entry = await validEntry(input, previous);

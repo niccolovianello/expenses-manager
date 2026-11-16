@@ -6,7 +6,10 @@ import { inRange } from '../lib/aggregate.js';
 import { PRESETS, matchingPreset, presetRange, stepRange, stepUnit } from '../lib/periods.js';
 import { navigate } from '../router.js';
 import { DEFAULT_TX_FILTERS } from './initial.js';
-import { baselineCategory, selectAccountSummary, selectExtent } from './selectors.js';
+import { baselineCategory, selectAccountSummary, selectCategories, selectExtent, selectTags } from './selectors.js';
+import { watch } from './store.js';
+import { debounce } from '../lib/memo.js';
+import { buildBotHints } from '../domain/bot-hints.js';
 import { loadAccountSeed, loadRecurringSeed } from '../data/local-seed.js';
 import { formatEUR } from '../lib/format.js';
 import { showToast } from '../components/toast.js';
@@ -60,6 +63,34 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     }
   }
 
+  // Once Telegram is set up, the names the bot needs follow every change of accounts and categories.
+  // Written only when they change, a moment after the last change.
+  let hintsSync = null;
+  function syncBotHints() {
+    if (hintsSync) return;
+    let written = null;
+    const write = debounce(async (hints, key) => {
+      try {
+        await api.writeBotHints(hints);
+        written = key;
+      } catch (error) {
+        showToast(`Telegram: ${error.message}`, { tone: 'error' });
+      }
+    }, 1500);
+    hintsSync = watch(store, ['accounts', 'transactions', 'recurrences', 'config', 'status'], (state) => {
+      if (state.status !== 'ready' && state.status !== 'empty') return;
+      const hints = buildBotHints({
+        accounts: state.accounts,
+        entries: state.entries,
+        categories: selectCategories(state),
+        tags: selectTags(state),
+        today: todayISO(),
+      });
+      const key = JSON.stringify(hints);
+      if (key !== written) write(hints, key);
+    });
+  }
+
   const actions = {
     async load() {
       store.set({ status: 'loading', error: null });
@@ -89,6 +120,7 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
         const inboxSetup = await api.inboxSetup();
         store.set({ inboxSetup });
         if (!inboxSetup) return;
+        syncBotHints();
         const { entries, added, cancelled, review, unreadable } = await api.drainInbox();
         store.set({ inboxReview: review, inboxUnreadable: unreadable });
         if (entries) {

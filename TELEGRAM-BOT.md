@@ -1,6 +1,6 @@
 # Plan: adding expenses from Telegram
 
-Status: steps 1–2 built (inbox crypto; app side with the Telegram panel in Conti and the review list in Movimenti). Step 3, the Firebase setup, is ready to apply by hand: rules in `firestore.rules`, instructions in DEPLOY.md (*Telegram bot*). Next: the Worker.
+Status: steps 1–4 built (inbox crypto; app side; Firestore rules; the Worker in `bot/`). Setting it up is by hand, in DEPLOY.md (*Telegram bot*). Left: nothing required; see *Later* at the end.
 
 Goal: send a message like *"pizza 18,50 ieri satispay"* to a private Telegram bot. Claude turns it into a transaction, and the transaction shows up in **Movimenti** the next time the app is unlocked. Your existing data stays readable only by the browser.
 
@@ -72,8 +72,8 @@ Test: `test/inbox.test.js` round-trips seal → open, rejects a doc-ID swap, and
   - Validation reuses `normalizeEntry` from `public/js/domain/entries.js`, so the bot and the app enforce the same rules.
 - **Replies:**
   - Success: *"✓ 18,50 € · Ristoranti · Satispay · 15/11"*, with an **Annulla** button. The button writes a `{ type: 'cancel', ref }` inbox item.
-  - `needs_info`: Claude's question. Your next message is parsed together with the previous one (the last unfinished message is kept in Workers KV for 10 minutes).
-- **Commands:** `/annulla` cancels the last transaction; `/aiuto` shows example messages.
+  - `needs_info`: Claude's question, starting with your message in «», sent as a forced reply. Your answer arrives as a reply to it, so the Worker reads both together without keeping any state.
+- **Commands:** `/aiuto` shows example messages. Cancelling is the **Annulla** button under each confirmation.
 - **Secrets:** `TELEGRAM_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `ALLOWED_CHAT_ID`, `ANTHROPIC_API_KEY`, `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `BOT_EMAIL`, `BOT_PASSWORD`, `OWNER_UID`, `INBOX_PUBLIC_KEY`.
 
 ## 4. App changes
@@ -89,7 +89,7 @@ Test: `test/inbox.test.js` round-trips seal → open, rejects a doc-ID swap, and
 - **`main.js`:** run `drainInbox()` after `showApp`, in the background. Show a toast like *"3 movimenti da Telegram"*.
 - **Movimenti:** a *Da rivedere* banner opens the existing entry form (`views/transactions/entry-form.js`) pre-filled, with the original Telegram text above it. Saving or discarding deletes the inbox doc.
 - **Conti:** a small *Telegram* card with **Collega** (generates the keys and shows the public key and your UID to copy into the Worker) and **Rigenera chiave**.
-- **Hints:** after unlock, and after any change to accounts, categories or rules, write `users/{uid}/bot/hints = { accounts, categories, defaultAccount }` in plaintext, only when something changed. This is the one place data leaves the encryption (see the open decisions below).
+- **Hints:** after unlock, and after any change to accounts, categories or rules, write `users/{uid}/bot/hints = { json, updatedAt }` in plaintext, a moment after the last change and only when something changed. `json` holds `{ v, accounts, defaultAccount, categories: { expense, income }, tags }` (`public/js/domain/bot-hints.js`); the default account is the one most used for manual expenses in the last 90 days. This is the one place data leaves the encryption (see *Decisions*).
 
 ## 5. Build order
 
@@ -106,3 +106,8 @@ Test: `test/inbox.test.js` round-trips seal → open, rejects a doc-ID swap, and
 - **Auto-add valid items.** Valid inbox items are saved at unlock. Only invalid or ambiguous ones go to *Da rivedere*. The Telegram confirmation plus **Annulla** is the review step.
 - **Model: `claude-haiku-5-5`** at low effort.
 - **Privacy, accepted:** Telegram doesn't end-to-end encrypt messages to bots, so Telegram and Anthropic see the text of each message you send. Your stored data is unaffected.
+
+## Later
+
+- `/annulla` for the last transaction, without scrolling to its button (needs a little state in the Worker, e.g. Workers KV).
+- Photos of receipts: Claude reads images too, so a photo could become a transaction the same way.
