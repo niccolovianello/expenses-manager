@@ -4,10 +4,10 @@ import {
   initializeAuth, indexedDBLocalPersistence, signInWithEmailAndPassword, signOut,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import {
-  getFirestore, doc, getDoc, setDoc, writeBatch, serverTimestamp,
+  getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
-export { doc, getDoc, setDoc, writeBatch, serverTimestamp };
+export { collection, doc, getDoc, getDocs, setDoc, deleteDoc, writeBatch, serverTimestamp };
 
 let services = null;
 

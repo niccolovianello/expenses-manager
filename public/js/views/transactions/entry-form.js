@@ -1,4 +1,4 @@
-import { ENTRY_KINDS, entryInput, normalizeEntry } from '../../domain/entries.js';
+import { ENTRY_KINDS, entryInput, normalizeEntry, parseAmount } from '../../domain/entries.js';
 import { FREQUENCIES, normalizeRecurrence, recurrenceInput } from '../../domain/recurring.js';
 import { html, render, collectRefs } from '../../lib/html.js';
 import { icon } from '../../lib/icons.js';
@@ -10,7 +10,27 @@ import { fillCategorySelect, handleNewCategory } from './new-category.js';
 import { mountTagPicker } from './tag-picker.js';
 
 const FIELDS = ['date', 'amount', 'account', 'toAccount', 'category', 'tag', 'comment', 'frequency', 'endDate'];
-const formatAmountInput = (amount) => (amount ? amount.toFixed(2).replace('.', ',') : '');
+const formatAmountInput = (amount) => {
+  const value = parseAmount(amount);
+  return Number.isFinite(value) && value > 0 ? value.toFixed(2).replace('.', ',') : '';
+};
+const SAVED_ACROSS_IMPORTS = 'Resta salvato anche quando importi un nuovo export.';
+
+// The fields of the form from what the Telegram bot read; anything it could not tell stays empty.
+function inboxInput(parsed) {
+  const pick = (name) => (parsed[name] === null || parsed[name] === undefined ? '' : String(parsed[name]));
+  return {
+    kind: parsed.kind in ENTRY_KINDS ? parsed.kind : 'expense',
+    date: /^\d{4}-\d{2}-\d{2}$/.test(parsed.date ?? '') ? parsed.date : todayISO(),
+    amount: parsed.amount,
+    account: pick('account'),
+    toAccount: pick('toAccount'),
+    category: pick('category'),
+    tag: pick('tag'),
+    comment: pick('comment'),
+    frequency: '',
+  };
+}
 
 // The required fields still empty, all at once, so one submit says everything that is missing.
 const REQUIRED_NAMES = { amount: 'importo', account: 'conto', toAccount: 'conto di arrivo', category: 'categoria' };
@@ -27,7 +47,7 @@ export function mountEntryForm(element, store, actions) {
     <header class="panel-head">
       <div>
         <h2 class="panel-title" data-ref="title"></h2>
-        <p class="panel-sub">Resta salvato anche quando importi un nuovo export.</p>
+        <p class="panel-sub" data-ref="sub"></p>
       </div>
       <button type="button" class="icon-btn" data-ref="close" aria-label="Chiudi il modulo">${icon('x')}</button>
     </header>
@@ -60,8 +80,10 @@ export function mountEntryForm(element, store, actions) {
   const fields = refs.form.elements;
   let kind = 'expense';
   let editingId = null;
-  // 'entry': a one-off transaction being edited; 'recurrence': a recurring one; null: a new one, either.
+  // 'entry': a one-off transaction being edited; 'recurrence': a recurring one; 'inbox': a message from
+  // Telegram to check before adding it (one-off); null: a new one, either.
   let editing = null;
+  let inboxId = null;
   let saving = false;
   let lastToken = null;
 
@@ -123,24 +145,34 @@ export function mountEntryForm(element, store, actions) {
   }
 
   // `recurring`: the entry is a recurrence, or the new transaction starts as a monthly one.
-  function open(entry, recurring = false) {
+  // `inbox`: an item of the Telegram review list, to complete and add.
+  function open(entry, recurring = false, inbox = null) {
     editingId = entry?.id ?? null;
-    editing = entry ? (recurring ? 'recurrence' : 'entry') : null;
-    const values = entry ? (recurring ? recurrenceInput(entry) : entryInput(entry)) : { date: todayISO(), frequency: recurring ? 'monthly' : '' };
+    inboxId = inbox?.id ?? null;
+    editing = inbox ? 'inbox' : entry ? (recurring ? 'recurrence' : 'entry') : null;
+    const values = inbox ? inboxInput(inbox.parsed)
+      : entry ? (recurring ? recurrenceInput(entry) : entryInput(entry)) : { date: todayISO(), frequency: recurring ? 'monthly' : '' };
+    // A message naming an account that is not in Conti leaves the choice to you.
+    if (inbox) {
+      const names = new Set(store.get().accounts.map((account) => account.name));
+      for (const name of ['account', 'toAccount']) if (!names.has(values[name])) values[name] = '';
+    }
     // An existing transaction stays one-off or recurring: only how often it repeats can change.
     const frequencies = Object.entries(editing === 'recurrence' ? FREQUENCIES : { '': 'Non si ripete', ...FREQUENCIES });
     render(refs.frequency, frequencies.map(([value, label]) => html`<option value="${value}">${label}</option>`));
-    refs.frequencyField.hidden = editing === 'entry';
+    refs.frequencyField.hidden = editing === 'entry' || editing === 'inbox';
     // The account selects get their options (and the value) from syncOptions, called by setKind.
     for (const name of ['account', 'toAccount', 'category']) render(fields[name], html`<option value="${values[name] ?? ''}"></option>`);
     for (const name of FIELDS) fields[name].value = values[name] ?? '';
     fields.amount.value = formatAmountInput(values.amount);
     tagPicker.reset(values.tag ?? '');
     syncFrequency();
-    refs.title.textContent = editing === 'recurrence' ? 'Modifica movimento ricorrente' : editingId ? 'Modifica movimento' : 'Nuovo movimento';
+    refs.title.textContent = editing === 'inbox' ? 'Movimento da Telegram'
+      : editing === 'recurrence' ? 'Modifica movimento ricorrente' : editingId ? 'Modifica movimento' : 'Nuovo movimento';
+    refs.sub.textContent = editing === 'inbox' ? `Hai scritto: “${inbox.text || '…'}”` : SAVED_ACROSS_IMPORTS;
     render(refs.submit, editingId ? html`Salva modifiche` : html`${icon('plus')}Aggiungi`);
     refs.remove.hidden = !editingId;
-    showError(null);
+    showError(inbox?.error ?? null);
     setKind(values.kind ?? 'expense');
     snapshot = JSON.stringify(readForm());
     element.hidden = false;
@@ -175,6 +207,7 @@ export function mountEntryForm(element, store, actions) {
     element.hidden = true;
     editingId = null;
     editing = null;
+    inboxId = null;
   }
 
   const readForm = () => ({ kind, ...Object.fromEntries(FIELDS.map((name) => [name, fields[name].value])) });
@@ -229,12 +262,13 @@ export function mountEntryForm(element, store, actions) {
 
     saving = true;
     refs.submit.disabled = true;
-    const saved = recurring ? await actions.saveRecurrence(editingId, input) : await actions.saveEntry(editingId, input);
+    const saved = inboxId ? await actions.acceptInboxItem(inboxId, input)
+      : recurring ? await actions.saveRecurrence(editingId, input) : await actions.saveEntry(editingId, input);
     saving = false;
     refs.submit.disabled = false;
     if (!saved) return;
 
-    if (editingId || recurring) return close();
+    if (editingId || recurring || editing === 'inbox') return close();
     // Ready for the next one: only amount and details are cleared.
     for (const name of ['amount', 'comment']) fields[name].value = '';
     tagPicker.reset();
@@ -245,7 +279,7 @@ export function mountEntryForm(element, store, actions) {
   watch(store, ['entryDraft', 'transactions', 'config', 'accounts', 'route'], (state) => {
     if (state.entryDraft && state.entryDraft.token !== lastToken) {
       lastToken = state.entryDraft.token;
-      open(state.entryDraft.entry, state.entryDraft.recurring);
+      open(state.entryDraft.entry, state.entryDraft.recurring, state.entryDraft.inbox);
     } else if (!element.hidden) {
       syncOptions(state);
     }

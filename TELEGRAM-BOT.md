@@ -1,6 +1,6 @@
 # Plan: adding expenses from Telegram
 
-Status: proposal, nothing built yet.
+Status: steps 1–2 built (inbox crypto; app side with the Telegram panel in Conti and the review list in Movimenti). Next: Firebase setup (section 2), then the Worker.
 
 Goal: send a message like *"pizza 18,50 ieri satispay"* to a private Telegram bot. Claude turns it into a transaction, and the transaction shows up in **Movimenti** the next time the app is unlocked. Your existing data stays readable only by the browser.
 

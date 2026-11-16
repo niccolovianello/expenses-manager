@@ -4,6 +4,7 @@ import { normalizeRecurrence } from '../domain/recurring.js';
 import { normalizeTopUp, renameTopUp } from '../domain/topups.js';
 import { anchorExport, exportEffect, foldEntries, normalizeAccount, round2 } from '../domain/accounts.js';
 import { emptyCategorization, mutations, sanitizeCategorization } from './categorization-store.js';
+import { generateInboxKeys, importInboxPrivateKey, openInboxItem } from '../vault/inbox-crypto.js';
 
 const DATASET = 'dataset';
 const CATEGORIZATION = 'categorization';
@@ -13,6 +14,19 @@ const RECURRING = 'recurring';
 const TOPUPS = 'topups';
 const SEEDED = 'account-seed';
 const SEEDED_RECURRING = 'recurring-seed';
+const INBOX_KEY = 'inbox-key';
+
+// A transaction from the Telegram inbox takes its id from the inbox item: adding it twice (a drain
+// interrupted between saving and deleting the item) finds it already there.
+export const inboxEntryId = (docId) => `m-tg-${docId}`;
+
+// What the review list shows of an inbox item: the message as written and what was read from it.
+const inboxView = (id, payload) => ({
+  id,
+  text: typeof payload?.text === 'string' ? payload.text : '',
+  receivedAt: payload?.receivedAt ?? null,
+  parsed: payload?.parsed && typeof payload.parsed === 'object' ? payload.parsed : {},
+});
 
 // Access to the app's data on top of an encrypted store with read(name) / write(name, value).
 // Six containers: the last imported export, manually entered transactions, recurring ones,
@@ -25,6 +39,8 @@ export function createRepository(storage) {
   // undefined: not read yet; null: accounts never set up / nothing imported yet.
   let accounts;
   let dataset;
+  // undefined: not read yet; null: Telegram never set up.
+  let inboxKey;
   let queue = Promise.resolve();
 
   async function loadCategorization() {
@@ -58,6 +74,16 @@ export function createRepository(storage) {
     const current = await loadDataset();
     return { ...account, exportBase: current ? exportEffect(account.name, current.transactions) : null };
   }
+
+  async function loadInboxKey() {
+    if (inboxKey === undefined) inboxKey = await storage.read(INBOX_KEY);
+    return inboxKey;
+  }
+
+  // Only the public half leaves the repository, with the user id the bot writes under.
+  const inboxSetupOf = (stored) => (stored ? { publicJwk: stored.publicJwk, ownerUid: storage.uid ?? null, createdAt: stored.createdAt } : null);
+
+  const manualEntry = (id, entry, extra = {}) => ({ id, origin: 'manual', createdAt: new Date().toISOString(), ...extra, ...entry });
 
   async function loadAccounts() {
     if (accounts === undefined) accounts = await storage.read(ACCOUNTS);
@@ -188,8 +214,92 @@ export function createRepository(storage) {
 
     async addEntry(input) {
       const entry = await validEntry(input);
-      const now = new Date().toISOString();
-      return mutateEntries((list) => [...list, { id: `m-${crypto.randomUUID()}`, origin: 'manual', createdAt: now, ...entry }]);
+      return mutateEntries((list) => [...list, manualEntry(`m-${crypto.randomUUID()}`, entry)]);
+    },
+
+    inboxSetup: async () => inboxSetupOf(await loadInboxKey()),
+
+    // A new key pair for the bot. Items sealed with a previous one can no longer be opened.
+    createInboxKey: () => serial(async () => {
+      const { privateJwk, publicJwk } = await generateInboxKeys();
+      const next = { privateJwk, publicJwk, createdAt: new Date().toISOString() };
+      await storage.write(INBOX_KEY, next);
+      inboxKey = next;
+      return inboxSetupOf(next);
+    }),
+
+    // Opens what the bot left in the inbox. Valid transactions are added and their items deleted;
+    // the others stay in the inbox and come back in `review` (to fix and save, or discard) or in
+    // `unreadable` (sealed with another key, or damaged). A `cancel` item takes back an earlier one:
+    // the transaction if it was already added, the item if it is still waiting.
+    // `entries` is the new list, or null when nothing changed.
+    async drainInbox() {
+      const result = { entries: null, added: 0, cancelled: 0, review: [], unreadable: [] };
+      const stored = await loadInboxKey();
+      if (!stored || !storage.inbox) return result;
+      const items = await storage.inbox.list();
+      if (!items.length) return result;
+
+      const privateKey = await importInboxPrivateKey(stored.privateJwk);
+      const opened = [];
+      for (const item of items) {
+        try {
+          opened.push({ id: item.id, payload: await openInboxItem(privateKey, item.id, item) });
+        } catch (error) {
+          result.unreadable.push({ id: item.id, error: error.message });
+        }
+      }
+
+      const present = new Set((await loadEntries()).map((entry) => entry.id));
+      const waiting = new Set(opened.map((item) => item.id));
+      const cancels = opened.filter((item) => item.payload?.type === 'cancel');
+      const cancelled = new Set(cancels.map((item) => String(item.payload.ref ?? '')));
+      result.cancelled = [...cancelled].filter((ref) => present.has(inboxEntryId(ref)) || waiting.has(ref)).length;
+
+      const done = cancels.map((item) => item.id);
+      const additions = [];
+      for (const { id, payload } of opened) {
+        if (payload?.type === 'cancel') continue;
+        // Taken back, or already added by an earlier drain that did not get to delete the item.
+        if (cancelled.has(id) || present.has(inboxEntryId(id))) {
+          done.push(id);
+          continue;
+        }
+        const view = inboxView(id, payload);
+        if (view.parsed.status && view.parsed.status !== 'ok') {
+          result.review.push({ ...view, error: view.parsed.question || 'Il messaggio non bastava per un movimento' });
+          continue;
+        }
+        try {
+          additions.push(manualEntry(inboxEntryId(id), await validEntry(view.parsed), { via: 'telegram' }));
+          done.push(id);
+        } catch (error) {
+          result.review.push({ ...view, error: error.message });
+        }
+      }
+
+      // Taken back after it was added: the transaction goes too.
+      const removed = new Set([...cancelled].map(inboxEntryId).filter((id) => present.has(id)));
+      if (additions.length || removed.size) {
+        result.entries = await mutateEntries((list) => [...list.filter((entry) => !removed.has(entry.id)), ...additions]);
+      }
+      result.added = additions.length;
+      // Deleted only once the transactions are saved: if this fails, the next drain finds them added.
+      await Promise.all([...new Set(done)].map((id) => storage.inbox.remove(id)));
+      return result;
+    },
+
+    // An item from the review list, saved with the values corrected in the form.
+    async acceptInboxItem(docId, input) {
+      const entry = await validEntry(input);
+      const id = inboxEntryId(docId);
+      const next = await mutateEntries((list) => (list.some((item) => item.id === id) ? list : [...list, manualEntry(id, entry, { via: 'telegram' })]));
+      await storage.inbox?.remove(docId);
+      return next;
+    },
+
+    async discardInboxItem(docId) {
+      await storage.inbox?.remove(docId);
     },
 
     async updateEntry(id, input) {

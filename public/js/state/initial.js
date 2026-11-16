@@ -25,6 +25,11 @@ export function createInitialState({ preset = DEFAULT_PRESET } = {}) {
     topUpDraft: null,
     accounts: [],
     entryDraft: null,
+    // Telegram: the public key and user id for the bot (null until set up), the inbox items waiting
+    // for a decision, and those that could not be opened.
+    inboxSetup: null,
+    inboxReview: [],
+    inboxUnreadable: [],
     meta: null,
     config: { rules: [], overrides: {} },
     route: 'overview',

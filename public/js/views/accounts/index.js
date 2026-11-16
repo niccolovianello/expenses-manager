@@ -7,6 +7,7 @@ import { emptyState } from '../../components/common.js';
 import { mountAccountForm } from './account-form.js';
 import { mountTopUpForm } from './topup-form.js';
 import { mountTopUpList } from './topup-list.js';
+import { mountTelegramPanel } from './telegram-panel.js';
 import { accountColor } from '../../domain/accounts.js';
 
 export const accountMark = (account, size = 36) => html`<span class="account-mark" style="--account-color: ${accountColor(account.color)}; --mark-size: ${size}px" aria-hidden="true">${icon(account.icon, { size: Math.round(size * 0.5) })}</span>`;
@@ -26,12 +27,14 @@ export function mountAccounts(element, store, actions) {
       <div data-ref="list"></div>
     </section>
     <section class="panel entry-panel" data-ref="topUpForm" hidden></section>
-    <section class="panel" data-ref="topUps" hidden></section>`);
+    <section class="panel" data-ref="topUps" hidden></section>
+    <section class="panel" data-ref="telegram"></section>`);
 
   const refs = collectRefs(element);
   const form = mountAccountForm(refs.form, store, actions);
   mountTopUpForm(refs.topUpForm, store, actions);
   mountTopUpList(refs.topUps, store, actions);
+  mountTelegramPanel(refs.telegram, store, actions);
 
   element.addEventListener('click', (event) => {
     const action = event.target.closest('[data-action], [data-empty-action]');

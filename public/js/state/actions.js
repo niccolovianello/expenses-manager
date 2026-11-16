@@ -78,6 +78,85 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
         else store.set({ status: 'empty' });
       } catch (error) {
         store.set({ status: 'error', error: error.message });
+        return;
+      }
+      await actions.checkInbox();
+    },
+
+    // What the Telegram bot left in the inbox: valid transactions are added, the rest waits in Movimenti.
+    async checkInbox() {
+      try {
+        const inboxSetup = await api.inboxSetup();
+        store.set({ inboxSetup });
+        if (!inboxSetup) return;
+        const { entries, added, cancelled, review, unreadable } = await api.drainInbox();
+        store.set({ inboxReview: review, inboxUnreadable: unreadable });
+        if (entries) {
+          setData({ entries });
+          if (store.get().status === 'empty') showData();
+        }
+        const waiting = review.length + unreadable.length;
+        const parts = [
+          added && (added === 1 ? '1 movimento aggiunto da Telegram' : `${added} movimenti aggiunti da Telegram`),
+          cancelled && (cancelled === 1 ? '1 annullato' : `${cancelled} annullati`),
+          waiting && `${waiting} da rivedere`,
+        ].filter(Boolean);
+        if (!parts.length) return;
+        const action = waiting && store.get().route !== 'transactions' ? { label: 'Rivedi', run: () => navigate('transactions') } : null;
+        showToast(parts.join(' · '), { duration: 6000, action });
+      } catch (error) {
+        showToast(`Telegram: ${error.message}`, { tone: 'error' });
+      }
+    },
+
+    // Creates (or replaces) the key pair the bot seals with, then rereads the inbox with it.
+    async setUpTelegram() {
+      try {
+        const replacing = Boolean(store.get().inboxSetup);
+        store.set({ inboxSetup: await api.createInboxKey() });
+        await actions.checkInbox();
+        // After the inbox toast, if any: what to do next matters more than what is waiting in Movimenti.
+        showToast(replacing ? 'Nuova chiave creata: aggiornala nel bot' : 'Chiave creata: copiala nel bot');
+        return true;
+      } catch (error) {
+        showToast(error.message, { tone: 'error' });
+        return false;
+      }
+    },
+
+    // Opens an inbox item in the transaction form, filled with what was read from the message.
+    reviewInboxItem(id) {
+      const item = store.get().inboxReview.find((candidate) => candidate.id === id);
+      if (!item) return;
+      store.set({ entryDraft: { token: Date.now(), entry: null, recurring: false, inbox: item } });
+      navigate('transactions');
+    },
+
+    async acceptInboxItem(id, input) {
+      try {
+        setData({ entries: await api.acceptInboxItem(id, input) });
+        store.set((state) => ({ inboxReview: state.inboxReview.filter((item) => item.id !== id) }));
+        const outside = !inRange(input, store.get().period) ? ' (fuori dal periodo mostrato)' : '';
+        showToast(`Movimento da Telegram aggiunto${outside}`);
+        return true;
+      } catch (error) {
+        showToast(error.message, { tone: 'error' });
+        return false;
+      }
+    },
+
+    async discardInboxItem(id) {
+      try {
+        await api.discardInboxItem(id);
+        store.set((state) => ({
+          inboxReview: state.inboxReview.filter((item) => item.id !== id),
+          inboxUnreadable: state.inboxUnreadable.filter((item) => item.id !== id),
+        }));
+        showToast('Messaggio scartato');
+        return true;
+      } catch (error) {
+        showToast(error.message, { tone: 'error' });
+        return false;
       }
     },
 

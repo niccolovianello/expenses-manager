@@ -1,4 +1,4 @@
-import { doc, getDoc, writeBatch, serverTimestamp } from './firebase.js';
+import { collection, deleteDoc, doc, getDoc, getDocs, writeBatch, serverTimestamp } from './firebase.js';
 import { openJson, sealJson } from './crypto.js';
 
 // Base64 characters per document: stays under Firestore's 1 MiB limit.
@@ -18,6 +18,9 @@ export function createVaultStorage({ db, uid, key }) {
   const ref = (id) => doc(db, 'users', uid, 'blobs', id);
 
   return {
+    // The Firebase user id: not secret, the bot needs it to know where the inbox is.
+    uid,
+
     async read(name) {
       const head = await getDoc(ref(name));
       if (!head.exists()) return null;
@@ -38,6 +41,16 @@ export function createVaultStorage({ db, uid, key }) {
       for (let i = parts.length; i < previousParts; i++) batch.delete(ref(partId(name, i)));
       batch.set(ref(name), { iv, parts: parts.length, updatedAt: serverTimestamp() });
       await batch.commit();
+    },
+
+    // users/{uid}/inbox: items the Telegram bot sealed with the inbox public key (see inbox-crypto.js).
+    // Read and deleted here, never written: only the bot creates them.
+    inbox: {
+      async list() {
+        const snapshot = await getDocs(collection(db, 'users', uid, 'inbox'));
+        return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      },
+      remove: (id) => deleteDoc(doc(db, 'users', uid, 'inbox', id)),
     },
   };
 }

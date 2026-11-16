@@ -10,3 +10,5 @@ node_modules/
 public/js/data/accounts.local.js
 # Initial recurring transactions: same reason.
 public/js/data/recurring.local.js
+# Bot secrets for local runs (wrangler dev, scripts/fake-inbox-item.js).
+bot/.dev.vars

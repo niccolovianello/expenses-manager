@@ -13,6 +13,7 @@ import { startNewCategory } from './new-category.js';
 import { mountEntryForm } from './entry-form.js';
 import { mountRecurringList } from './recurring-list.js';
 import { mountExportPanel } from './export-panel.js';
+import { mountInboxReview } from './inbox-review.js';
 
 const KINDS = [
   { id: 'all', label: 'Tutti' },
@@ -45,6 +46,7 @@ export function mountTransactions(element, store, actions) {
       </div>
     </header>
     <section class="panel export-panel" id="export-panel" data-ref="export" hidden></section>
+    <section class="panel" data-ref="inbox" hidden></section>
     <section class="panel entry-panel" data-ref="entry" hidden></section>
     <section class="panel" data-ref="recurring" hidden></section>
     <section class="panel panel-flush">
@@ -71,6 +73,7 @@ export function mountTransactions(element, store, actions) {
     </section>`);
 
   const refs = collectRefs(element);
+  mountInboxReview(refs.inbox, store, actions);
   mountEntryForm(refs.entry, store, actions);
   mountRecurringList(refs.recurring, store, actions);
   const exportPanel = mountExportPanel(refs.export, store);
