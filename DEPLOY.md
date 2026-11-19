@@ -145,11 +145,14 @@ The bot runs as a Cloudflare Worker (the free plan is enough), from the `bot/` f
    npx wrangler secret put INBOX_PUBLIC_KEY         # Conti → Telegram, the whole {...}
    ```
    `MODEL`, `FIREBASE_PROJECT_ID` and `BOT_EMAIL` are not secret and are in `bot/wrangler.toml`.
-5. Deploy: `npm run deploy`. It prints the Worker's address, `https://spese-telegram-bot.<subdomain>.workers.dev`.
-6. Add `TELEGRAM_TOKEN` and `TELEGRAM_WEBHOOK_SECRET` to `bot/.dev.vars` too, then point Telegram at the Worker:
+
+   If the Anthropic key was created outside any workspace, the API refuses it with *"This API key is not scoped to a workspace"*. Either create the key inside a workspace (Console → the workspace → API keys) and store that one instead, or keep it and name the workspace: `npx wrangler secret put ANTHROPIC_WORKSPACE_ID` with the workspace's id (`wrkspc_…`, in the workspace's settings).
+5. Deploy: `npm run deploy`. It prints the Worker's address, `https://expense-manager.<subdomain>.workers.dev`.
+6. Add `TELEGRAM_WEBHOOK_SECRET` to `bot/.dev.vars` too (the same value as in step 4), then have the Worker register itself with Telegram:
    ```bash
-   npm run set-webhook -- https://spese-telegram-bot.<subdomain>.workers.dev
+   npm run set-webhook -- https://expense-manager.<subdomain>.workers.dev
    ```
+   The script only sends the webhook secret to the Worker (`POST /setup`); the Worker calls Telegram from Cloudflare with the token it already holds, so the token is never needed on your computer. It prints `Webhook set for @<bot>.`, or which side failed.
 7. Write anything to the bot. Until it knows your chat, it only answers with your **chat id**: store it, and the Worker updates by itself:
    ```bash
    npx wrangler secret put ALLOWED_CHAT_ID
