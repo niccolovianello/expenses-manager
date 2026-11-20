@@ -102,7 +102,9 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
           api.dataset(), api.categorization(), api.entries(), api.recurrences(), api.accounts(), api.topUps(), api.importEdits(),
         ]);
         const seed = await loadAccountSeed();
-        const accounts = seed ? await api.seedAccounts(seed) : stored ?? [];
+        let accounts = seed ? await api.seedAccounts(seed) : stored ?? [];
+        // Changes to the export saved before an account had a baseline: it gets one, so they count.
+        if (Object.keys(importEdits).length) accounts = (await api.anchorBeforeEdits()) ?? accounts;
         // After the accounts: the recurring transactions must use one of them.
         const recurringSeed = await loadRecurringSeed();
         const recurrences = recurringSeed ? await api.seedRecurrences(recurringSeed) : storedRecurrences;
@@ -306,7 +308,8 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     // overrides: compared with what the rules give the transaction as changed (a new description can match another rule).
     async saveImportEdit(tx, input) {
       try {
-        setData({ importEdits: await api.setImportEdit(tx.id, input) });
+        const { importEdits, accounts } = await api.setImportEdit(tx.id, input);
+        setData({ importEdits, ...(accounts ? { accounts } : {}) });
         const updated = store.get().transactions.find((candidate) => candidate.id === tx.id) ?? tx;
         if (updated.kind !== 'transfer' && input.category && input.category !== updated.category) {
           const state = store.get();
@@ -332,7 +335,8 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     // Brings a transaction of the export back to how the export has it, category included.
     async resetImportEdit(tx) {
       try {
-        setData({ importEdits: await api.clearImportEdit(tx.id) });
+        const { importEdits, accounts } = await api.clearImportEdit(tx.id);
+        setData({ importEdits, ...(accounts ? { accounts } : {}) });
         const state = store.get();
         if (state.config.overrides[tx.id]) {
           const overrides = { ...state.config.overrides };

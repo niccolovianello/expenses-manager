@@ -91,6 +91,16 @@ export function createRepository(storage) {
     return inboxKey;
   }
 
+  // An account without `exportBase` (balance set before it existed) cancels out whatever the export
+  // stored now adds up to, so a change to one of its transactions would never move it. Its balance was
+  // typed before any change existed: it gets the export as it came as its baseline.
+  async function anchorBeforeEdits() {
+    const current = await loadDataset();
+    const list = (await loadAccounts()) ?? [];
+    if (!current || !list.some((account) => account.exportBase == null)) return accounts ?? null;
+    return mutateAccounts((next) => anchorExport(next, current.transactions));
+  }
+
   // Only the public half leaves the repository, with the user id the bot writes under.
   const inboxSetupOf = (stored) => (stored ? { publicJwk: stored.publicJwk, ownerUid: storage.uid ?? null, createdAt: stored.createdAt } : null);
 
@@ -333,29 +343,39 @@ export function createRepository(storage) {
 
     // A change to a transaction of the export: `input` has the values of the form (the kind stays the
     // export's). Only the fields that differ from the export are kept; none left means no change.
+    // Returns { importEdits, accounts }.
     async setImportEdit(id, input) {
       const original = (await loadDataset())?.transactions.find((tx) => tx.id === id);
       if (!original) throw new Error('Movimento non trovato nell’export');
       const entry = await validEntry({ ...input, kind: original.kind }, original);
       const patch = importEditPatch(original, entry);
-      return serial(async () => {
-        const next = { ...(await loadImportEdits()) };
-        if (Object.keys(patch).length) next[id] = patch;
-        else delete next[id];
-        await storage.write(IMPORT_EDITS, next);
-        importEdits = next;
-        return next;
+      const nextAccounts = await anchorBeforeEdits();
+      const next = await serial(async () => {
+        const list = { ...(await loadImportEdits()) };
+        if (Object.keys(patch).length) list[id] = patch;
+        else delete list[id];
+        await storage.write(IMPORT_EDITS, list);
+        importEdits = list;
+        return list;
       });
+      return { importEdits: next, accounts: nextAccounts };
     },
 
-    clearImportEdit: (id) => serial(async () => {
-      const next = { ...(await loadImportEdits()) };
-      if (!(id in next)) return next;
-      delete next[id];
-      await storage.write(IMPORT_EDITS, next);
-      importEdits = next;
-      return next;
-    }),
+    // Returns { importEdits, accounts }.
+    async clearImportEdit(id) {
+      const nextAccounts = await anchorBeforeEdits();
+      const next = await serial(async () => {
+        const list = { ...(await loadImportEdits()) };
+        if (!(id in list)) return list;
+        delete list[id];
+        await storage.write(IMPORT_EDITS, list);
+        importEdits = list;
+        return list;
+      });
+      return { importEdits: next, accounts: nextAccounts };
+    },
+
+    anchorBeforeEdits: () => anchorBeforeEdits(),
 
     deleteEntry(id) {
       return mutateEntries((list) => {
