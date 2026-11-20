@@ -3,6 +3,7 @@ import { duplicateKey, normalizeEntry } from '../domain/entries.js';
 import { normalizeRecurrence } from '../domain/recurring.js';
 import { normalizeTopUp, renameTopUp } from '../domain/topups.js';
 import { anchorExport, exportEffect, foldEntries, normalizeAccount, round2 } from '../domain/accounts.js';
+import { applyImportEdits, importEditPatch, sanitizeImportEdits } from '../domain/import-edits.js';
 import { emptyCategorization, mutations, sanitizeCategorization } from './categorization-store.js';
 import { generateInboxKeys, importInboxPrivateKey, openInboxItem } from '../vault/inbox-crypto.js';
 
@@ -15,6 +16,7 @@ const TOPUPS = 'topups';
 const SEEDED = 'account-seed';
 const SEEDED_RECURRING = 'recurring-seed';
 const INBOX_KEY = 'inbox-key';
+const IMPORT_EDITS = 'import-edits';
 
 // A transaction from the Telegram inbox takes its id from the inbox item: adding it twice (a drain
 // interrupted between saving and deleting the item) finds it already there.
@@ -29,13 +31,14 @@ const inboxView = (id, payload) => ({
 });
 
 // Access to the app's data on top of an encrypted store with read(name) / write(name, value).
-// Six containers: the last imported export, manually entered transactions, recurring ones,
-// rules and overrides, accounts, automatic top-ups.
+// Seven containers: the last imported export, the changes made to its transactions, manually entered
+// transactions, recurring ones, rules and overrides, accounts, automatic top-ups.
 export function createRepository(storage) {
   let categorization = null;
   let entries = null;
   let recurrences = null;
   let topUps = null;
+  let importEdits = null;
   // undefined: not read yet; null: accounts never set up / nothing imported yet.
   let accounts;
   let dataset;
@@ -68,11 +71,19 @@ export function createRepository(storage) {
     return dataset;
   }
 
+  async function loadImportEdits() {
+    if (!importEdits) importEdits = sanitizeImportEdits(await storage.read(IMPORT_EDITS));
+    return importEdits;
+  }
+
+  // The export's transactions as the app shows them: with the changes made by hand.
+  const edited = async (transactions) => applyImportEdits(transactions, await loadImportEdits());
+
   // A balance set now includes what the export adds up to for the account; without an export, the
   // first import decides (see anchorExport).
   async function withExportBase(account) {
     const current = await loadDataset();
-    return { ...account, exportBase: current ? exportEffect(account.name, current.transactions) : null };
+    return { ...account, exportBase: current ? exportEffect(account.name, await edited(current.transactions)) : null };
   }
 
   async function loadInboxKey() {
@@ -189,17 +200,21 @@ export function createRepository(storage) {
     recurrences: loadRecurrences,
     accounts: loadAccounts,
     topUps: loadTopUps,
+    importEdits: loadImportEdits,
 
     // Manual transactions that now also appear in the export are removed, so they are not counted twice.
     async importFile(file) {
       const next = await importExport(file);
       // Balances without a baseline get one from the previous export before it is gone.
       const previous = await loadDataset();
+      const before = previous ? await edited(previous.transactions) : null;
+      const after = await edited(next.transactions);
       const anchored = await mutateAccounts((list) =>
-        previous ? anchorExport(list, previous.transactions) : anchorExport(list, next.transactions, { setDay: true }));
+        before ? anchorExport(list, before) : anchorExport(list, after, { setDay: true }));
       await storage.write(DATASET, next);
       dataset = next;
-      const imported = new Map(next.transactions.map((tx) => [duplicateKey(tx), tx]));
+      // Matched on the export as it is; the copy that takes the place of a manual one is the one shown.
+      const imported = new Map(next.transactions.map((tx, index) => [duplicateKey(tx), after[index]]));
       const isDuplicate = (entry) => imported.has(duplicateKey(entry));
       const current = await loadEntries();
       const duplicates = current.filter(isDuplicate);
@@ -316,6 +331,32 @@ export function createRepository(storage) {
       });
     },
 
+    // A change to a transaction of the export: `input` has the values of the form (the kind stays the
+    // export's). Only the fields that differ from the export are kept; none left means no change.
+    async setImportEdit(id, input) {
+      const original = (await loadDataset())?.transactions.find((tx) => tx.id === id);
+      if (!original) throw new Error('Movimento non trovato nell’export');
+      const entry = await validEntry({ ...input, kind: original.kind }, original);
+      const patch = importEditPatch(original, entry);
+      return serial(async () => {
+        const next = { ...(await loadImportEdits()) };
+        if (Object.keys(patch).length) next[id] = patch;
+        else delete next[id];
+        await storage.write(IMPORT_EDITS, next);
+        importEdits = next;
+        return next;
+      });
+    },
+
+    clearImportEdit: (id) => serial(async () => {
+      const next = { ...(await loadImportEdits()) };
+      if (!(id in next)) return next;
+      delete next[id];
+      await storage.write(IMPORT_EDITS, next);
+      importEdits = next;
+      return next;
+    }),
+
     deleteEntry(id) {
       return mutateEntries((list) => {
         list.splice(entryIndex(list, id), 1);
@@ -418,7 +459,7 @@ export function createRepository(storage) {
         const list = structuredClone((await loadAccounts()) ?? []);
         const index = accountIndex(list, id);
         const current = await loadDataset();
-        const imported = current?.transactions ?? [];
+        const imported = await edited(current?.transactions ?? []);
         const [previous] = current ? anchorExport([list[index]], imported) : [list[index]];
         const account = validAccount(input, list, id);
         if (account.name !== previous.name) renamed = { from: previous.name, to: account.name };

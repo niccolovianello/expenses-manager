@@ -32,8 +32,8 @@ function categoryCell(tx, state, categories) {
 // On the phone the row is read-only; tapping it opens it with an editable category and actions.
 const isEntered = (tx) => tx.origin === 'manual' || tx.origin === 'recurring' || tx.origin === 'topup';
 const BADGES = { recurring: 'Ricorrente', topup: 'Ricarica automatica' };
-const EDIT_TITLES = { recurring: 'Modifica la ripetizione', topup: 'Modifica la ricarica automatica' };
-const isEditable = (tx) => isEntered(tx) || tx.kind !== 'transfer';
+const EDIT_TITLES = { recurring: 'Modifica la ripetizione', topup: 'Modifica la ricarica automatica', manual: 'Modifica o elimina' };
+const badgeOf = (tx) => BADGES[tx.origin] ?? (tx.edited ? 'Modificato' : null);
 
 export function transactionRow(tx, state, categories, open = false) {
   const amount = tx.kind === 'transfer' ? formatEUR(tx.amount) : formatSignedEUR(signedAmount(tx));
@@ -42,20 +42,19 @@ export function transactionRow(tx, state, categories, open = false) {
     <td class="col-date nowrap muted">${formatDate(tx.date)}</td>
     <td class="col-desc">
       <span class="cell-title">${describeTransaction(tx)}</span>
-      ${secondary || BADGES[tx.origin] ? html`<span class="cell-sub">
-        ${BADGES[tx.origin] ? html`<span class="badge">${BADGES[tx.origin]}</span>` : ''}${secondary}
+      ${secondary || badgeOf(tx) ? html`<span class="cell-sub">
+        ${badgeOf(tx) ? html`<span class="badge">${badgeOf(tx)}</span>` : ''}${secondary}
       </span>` : ''}
     </td>
     <td class="col-category">${categoryCell(tx, state, categories)}</td>
     <td class="col-account nowrap">${tx.toAccount ? html`${tx.account} ${icon('arrow-right', { size: 12 })} ${tx.toAccount}` : tx.account}</td>
     <td class="col-amount num nowrap strong amount-${tx.kind}">${amount}</td>
     <td class="col-actions">
-      ${isEditable(tx) ? html`<button type="button" class="icon-btn row-toggle" data-action="toggle-row" aria-expanded="${open}" aria-label="${open ? 'Chiudi' : 'Modifica'} ${describeTransaction(tx)}">${icon(open ? 'chevron-up' : 'chevron-down')}</button>` : ''}
-      ${isEntered(tx)
-        ? html`<button type="button" class="icon-btn" data-action="edit-entry" title="${EDIT_TITLES[tx.origin] ?? 'Modifica o elimina'}" aria-label="Modifica ${describeTransaction(tx)}">${icon('pencil')}</button>`
-        : tx.kind === 'transfer'
-          ? ''
-          : html`<button type="button" class="icon-btn row-rule-btn" data-action="rule" title="Crea una regola da questo movimento" aria-label="Crea una regola da ${describeTransaction(tx)}">${icon('rule')}<span class="row-action-label" aria-hidden="true">Crea regola</span></button>`}
+      <button type="button" class="icon-btn row-toggle" data-action="toggle-row" aria-expanded="${open}" aria-label="${open ? 'Chiudi' : 'Modifica'} ${describeTransaction(tx)}">${icon(open ? 'chevron-up' : 'chevron-down')}</button>
+      ${isEntered(tx) || tx.kind === 'transfer'
+        ? ''
+        : html`<button type="button" class="icon-btn row-rule-btn" data-action="rule" title="Crea una regola da questo movimento" aria-label="Crea una regola da ${describeTransaction(tx)}">${icon('rule')}<span class="row-action-label" aria-hidden="true">Crea regola</span></button>`}
+      <button type="button" class="icon-btn" data-action="edit-entry" title="${EDIT_TITLES[tx.origin] ?? 'Modifica'}" aria-label="Modifica ${describeTransaction(tx)}">${icon('pencil')}</button>
     </td>
   </tr>`;
 }

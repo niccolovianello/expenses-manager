@@ -2,6 +2,7 @@ import { todayISO } from '../lib/dates.js';
 import { duplicateKey, entryInput } from '../domain/entries.js';
 import { expandRecurrences, recurrenceInput } from '../domain/recurring.js';
 import { expandTopUps, settleTopUp } from '../domain/topups.js';
+import { applyImportEdits } from '../domain/import-edits.js';
 import { inRange } from '../lib/aggregate.js';
 import { PRESETS, matchingPreset, presetRange, stepRange, stepUnit } from '../lib/periods.js';
 import { navigate } from '../router.js';
@@ -23,17 +24,19 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
 
   const newestFirst = (a, b) => (b.date + (b.time ?? '')).localeCompare(a.date + (a.time ?? ''));
 
-  // The transactions shown are the imported ones plus the manual ones, the occurrences of the
-  // recurring ones and the automatic top-ups up to today. An occurrence the export already contains is
-  // shown once, from the export, and moves the balances once, as the imported transaction.
-  // The top-ups depend on the balances, so this runs again whenever the accounts change.
+  // The transactions shown are the imported ones (with the changes made to them by hand) plus the manual
+  // ones, the occurrences of the recurring ones and the automatic top-ups up to today. An occurrence the
+  // export already contains is shown once, from the export, and moves the balances once, as the imported
+  // transaction. The top-ups depend on the balances, so this runs again whenever the accounts change.
   function setData(patch = {}) {
-    const { imported, entries, recurrences, topUps, accounts } = { ...store.get(), ...patch };
+    const { imported, importEdits, entries, recurrences, topUps, accounts } = { ...store.get(), ...patch };
     const today = todayISO();
     const occurrences = expandRecurrences(recurrences, today);
+    // Matched on the export as it came, so changing a transaction does not bring its occurrence back.
     const exported = new Set(imported.map(duplicateKey));
-    const shown = [...entries, ...occurrences.filter((occurrence) => !exported.has(duplicateKey(occurrence))), ...imported];
-    const toppedUp = expandTopUps(topUps, shown, accounts, imported, today);
+    const exportShown = applyImportEdits(imported, importEdits);
+    const shown = [...entries, ...occurrences.filter((occurrence) => !exported.has(duplicateKey(occurrence))), ...exportShown];
+    const toppedUp = expandTopUps(topUps, shown, accounts, exportShown, today);
     store.set({ ...patch, occurrences, transactions: [...shown, ...toppedUp].sort(newestFirst) });
   }
 
@@ -95,8 +98,8 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     async load() {
       store.set({ status: 'loading', error: null });
       try {
-        const [dataset, config, entries, storedRecurrences, stored, topUps] = await Promise.all([
-          api.dataset(), api.categorization(), api.entries(), api.recurrences(), api.accounts(), api.topUps(),
+        const [dataset, config, entries, storedRecurrences, stored, topUps, importEdits] = await Promise.all([
+          api.dataset(), api.categorization(), api.entries(), api.recurrences(), api.accounts(), api.topUps(), api.importEdits(),
         ]);
         const seed = await loadAccountSeed();
         const accounts = seed ? await api.seedAccounts(seed) : stored ?? [];
@@ -104,7 +107,7 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
         const recurringSeed = await loadRecurringSeed();
         const recurrences = recurringSeed ? await api.seedRecurrences(recurringSeed) : storedRecurrences;
         store.set({ config });
-        setData({ imported: dataset?.transactions ?? [], meta: dataset?.meta ?? null, entries, recurrences, accounts, topUps });
+        setData({ imported: dataset?.transactions ?? [], importEdits, meta: dataset?.meta ?? null, entries, recurrences, accounts, topUps });
         if (dataset || entries.length || recurrences.length || accounts.length) showData();
         else store.set({ status: 'empty' });
       } catch (error) {
@@ -286,15 +289,62 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
     },
 
     // `recurring`: the entry is a recurrence, or the new transaction starts as a recurring one.
-    // An occurrence of a recurring transaction opens the recurrence it comes from.
+    // An occurrence of a recurring transaction opens the recurrence it comes from; a transaction of the
+    // export opens as it is shown, with its current category.
     openEntryForm(entry = null, { recurring = false } = {}) {
       if (entry?.origin === 'topup') return actions.openTopUpForm(store.get().topUps.find((t) => t.id === entry.topUpId) ?? null);
       const state = store.get();
       if (state.status === 'empty') showData();
       const occurrence = entry?.origin === 'recurring';
+      const imported = Boolean(entry) && !entry.origin && !recurring;
       const source = occurrence ? state.recurrences.find((r) => r.id === entry.recurrenceId) ?? null : entry;
-      store.set({ entryDraft: { token: Date.now(), entry: source, recurring: recurring || occurrence } });
+      store.set({ entryDraft: { token: Date.now(), entry: source, recurring: recurring || occurrence, imported } });
       navigate('transactions');
+    },
+
+    // Saves the changes to a transaction of the export. The category goes, as from the list, into the
+    // overrides: compared with what the rules give the transaction as changed (a new description can match another rule).
+    async saveImportEdit(tx, input) {
+      try {
+        setData({ importEdits: await api.setImportEdit(tx.id, input) });
+        const updated = store.get().transactions.find((candidate) => candidate.id === tx.id) ?? tx;
+        if (updated.kind !== 'transfer' && input.category && input.category !== updated.category) {
+          const state = store.get();
+          const overrides = { ...state.config.overrides };
+          const matchesBaseline = input.category === baselineCategory(state, updated);
+          if (matchesBaseline) delete overrides[tx.id];
+          else overrides[tx.id] = input.category;
+          const saved = await persistConfig(
+            { ...state.config, overrides },
+            () => (matchesBaseline ? api.clearOverride(tx.id) : api.setOverride(tx.id, input.category)),
+          );
+          if (!saved) return false;
+        }
+        const outside = !inRange(input, store.get().period) ? ' (fuori dal periodo mostrato)' : '';
+        showToast(`Movimento aggiornato${outside}`);
+        return true;
+      } catch (error) {
+        showToast(error.message, { tone: 'error' });
+        return false;
+      }
+    },
+
+    // Brings a transaction of the export back to how the export has it, category included.
+    async resetImportEdit(tx) {
+      try {
+        setData({ importEdits: await api.clearImportEdit(tx.id) });
+        const state = store.get();
+        if (state.config.overrides[tx.id]) {
+          const overrides = { ...state.config.overrides };
+          delete overrides[tx.id];
+          if (!await persistConfig({ ...state.config, overrides }, () => api.clearOverride(tx.id))) return false;
+        }
+        showToast('Movimento riportato com’era nell’export');
+        return true;
+      } catch (error) {
+        showToast(error.message, { tone: 'error' });
+        return false;
+      }
     },
 
     async saveEntry(id, input) {

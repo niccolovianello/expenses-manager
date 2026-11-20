@@ -18,6 +18,8 @@ export function createInitialState({ preset = DEFAULT_PRESET } = {}) {
     error: null,
     transactions: [],
     imported: [],
+    // Changes made by hand to transactions of the export, by id: { [id]: { date, amount, … } }.
+    importEdits: {},
     entries: [],
     recurrences: [],
     occurrences: [],

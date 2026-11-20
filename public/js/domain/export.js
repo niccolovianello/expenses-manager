@@ -17,7 +17,7 @@ const COLUMNS = [
   ['Categoria originale', (tx) => (tx.kind === 'transfer' ? '' : tx.sourceCategory ?? '')],
   ['Tag', (tx) => tx.tag ?? ''],
   ['Descrizione', (tx) => tx.comment ?? ''],
-  ['Origine', (tx) => ORIGIN_LABELS[tx.origin] ?? 'Export'],
+  ['Origine', (tx) => ORIGIN_LABELS[tx.origin] ?? (tx.edited ? 'Export (modificato)' : 'Export')],
 ];
 
 // Empty `from` / `to` leave that side open; `accounts` null means every account.

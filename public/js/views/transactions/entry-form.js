@@ -15,6 +15,7 @@ const formatAmountInput = (amount) => {
   return Number.isFinite(value) && value > 0 ? value.toFixed(2).replace('.', ',') : '';
 };
 const SAVED_ACROSS_IMPORTS = 'Resta salvato anche quando importi un nuovo export.';
+const IMPORTED_NOTE = 'Viene dall’export: le modifiche restano anche quando lo importi di nuovo.';
 
 // The fields of the form from what the Telegram bot read; anything it could not tell stays empty.
 function inboxInput(parsed) {
@@ -71,7 +72,7 @@ export function mountEntryForm(element, store, actions) {
       <div class="form-actions" data-ref="actions">
         <button type="submit" class="btn btn-primary" data-ref="submit"></button>
         <button type="button" class="btn btn-ghost" data-ref="cancel">Annulla</button>
-        <button type="button" class="btn btn-ghost btn-danger" data-ref="remove" hidden>${icon('trash')}Elimina</button>
+        <button type="button" class="btn btn-ghost btn-danger" data-ref="remove" hidden></button>
       </div>
     </form>`);
 
@@ -81,9 +82,11 @@ export function mountEntryForm(element, store, actions) {
   let kind = 'expense';
   let editingId = null;
   // 'entry': a one-off transaction being edited; 'recurrence': a recurring one; 'inbox': a message from
-  // Telegram to check before adding it (one-off); null: a new one, either.
+  // Telegram to check before adding it (one-off); 'imported': a transaction of the export; null: a new one, either.
   let editing = null;
   let inboxId = null;
+  // The transaction of the export being edited, as shown in the list.
+  let importedTx = null;
   let saving = false;
   let lastToken = null;
 
@@ -91,6 +94,8 @@ export function mountEntryForm(element, store, actions) {
     kind = next;
     for (const button of element.querySelectorAll('[data-kind]')) {
       button.setAttribute('aria-pressed', String(button.dataset.kind === kind));
+      // The kind of a transaction of the export is the export's.
+      button.disabled = editing === 'imported' && button.dataset.kind !== kind;
     }
     const isTransfer = kind === 'transfer';
     refs.toAccountField.hidden = !isTransfer;
@@ -146,11 +151,14 @@ export function mountEntryForm(element, store, actions) {
 
   // `recurring`: the entry is a recurrence, or the new transaction starts as a monthly one.
   // `inbox`: an item of the Telegram review list, to complete and add.
-  function open(entry, recurring = false, inbox = null) {
+  // `imported`: the entry is a transaction of the export.
+  function open(entry, recurring = false, inbox = null, imported = false) {
     editingId = entry?.id ?? null;
     inboxId = inbox?.id ?? null;
-    editing = inbox ? 'inbox' : entry ? (recurring ? 'recurrence' : 'entry') : null;
+    editing = inbox ? 'inbox' : entry ? (recurring ? 'recurrence' : imported ? 'imported' : 'entry') : null;
+    importedTx = editing === 'imported' ? entry : null;
     const values = inbox ? inboxInput(inbox.parsed)
+      : importedTx ? { ...entryInput(entry), category: entry.category ?? entry.sourceCategory }
       : entry ? (recurring ? recurrenceInput(entry) : entryInput(entry)) : { date: todayISO(), frequency: recurring ? 'monthly' : '' };
     // A message naming an account that is not in Conti leaves the choice to you.
     if (inbox) {
@@ -160,7 +168,7 @@ export function mountEntryForm(element, store, actions) {
     // An existing transaction stays one-off or recurring: only how often it repeats can change.
     const frequencies = Object.entries(editing === 'recurrence' ? FREQUENCIES : { '': 'Non si ripete', ...FREQUENCIES });
     render(refs.frequency, frequencies.map(([value, label]) => html`<option value="${value}">${label}</option>`));
-    refs.frequencyField.hidden = editing === 'entry' || editing === 'inbox';
+    refs.frequencyField.hidden = editing === 'entry' || editing === 'inbox' || editing === 'imported';
     // The account selects get their options (and the value) from syncOptions, called by setKind.
     for (const name of ['account', 'toAccount', 'category']) render(fields[name], html`<option value="${values[name] ?? ''}"></option>`);
     for (const name of FIELDS) fields[name].value = values[name] ?? '';
@@ -168,10 +176,15 @@ export function mountEntryForm(element, store, actions) {
     tagPicker.reset(values.tag ?? '');
     syncFrequency();
     refs.title.textContent = editing === 'inbox' ? 'Movimento da Telegram'
-      : editing === 'recurrence' ? 'Modifica movimento ricorrente' : editingId ? 'Modifica movimento' : 'Nuovo movimento';
-    refs.sub.textContent = editing === 'inbox' ? `Hai scritto: “${inbox.text || '…'}”` : SAVED_ACROSS_IMPORTS;
+      : editing === 'recurrence' ? 'Modifica movimento ricorrente'
+      : editing === 'imported' ? 'Modifica movimento importato' : editingId ? 'Modifica movimento' : 'Nuovo movimento';
+    refs.sub.textContent = editing === 'inbox' ? `Hai scritto: “${inbox.text || '…'}”` : editing === 'imported' ? IMPORTED_NOTE : SAVED_ACROSS_IMPORTS;
     render(refs.submit, editingId ? html`Salva modifiche` : html`${icon('plus')}Aggiungi`);
-    refs.remove.hidden = !editingId;
+    // A transaction of the export cannot be deleted (the next import would bring it back): it can go back to how the export has it.
+    const changed = importedTx && (importedTx.edited || store.get().config.overrides[importedTx.id]);
+    render(refs.remove, editing === 'imported' ? html`${icon('undo')}Ripristina originale` : html`${icon('trash')}Elimina`);
+    refs.remove.classList.toggle('btn-danger', editing !== 'imported');
+    refs.remove.hidden = !editingId || (editing === 'imported' && !changed);
     showError(inbox?.error ?? null);
     setKind(values.kind ?? 'expense');
     snapshot = JSON.stringify(readForm());
@@ -208,6 +221,7 @@ export function mountEntryForm(element, store, actions) {
     editingId = null;
     editing = null;
     inboxId = null;
+    importedTx = null;
   }
 
   const readForm = () => ({ kind, ...Object.fromEntries(FIELDS.map((name) => [name, fields[name].value])) });
@@ -234,6 +248,15 @@ export function mountEntryForm(element, store, actions) {
 
   refs.remove.addEventListener('click', async () => {
     if (!editingId) return;
+    if (editing === 'imported') {
+      const confirmed = await ask({
+        message: 'Riportare il movimento com’era nell’export?',
+        detail: 'Le modifiche fatte a mano, categoria compresa, vanno perse.',
+        confirmLabel: 'Ripristina',
+      });
+      if (confirmed && await actions.resetImportEdit(importedTx)) close();
+      return;
+    }
     if (editing === 'recurrence') {
       const confirmed = await ask({
         message: 'Eliminare questo movimento ricorrente?',
@@ -263,12 +286,13 @@ export function mountEntryForm(element, store, actions) {
     saving = true;
     refs.submit.disabled = true;
     const saved = inboxId ? await actions.acceptInboxItem(inboxId, input)
+      : importedTx ? await actions.saveImportEdit(importedTx, input)
       : recurring ? await actions.saveRecurrence(editingId, input) : await actions.saveEntry(editingId, input);
     saving = false;
     refs.submit.disabled = false;
     if (!saved) return;
 
-    if (editingId || recurring || editing === 'inbox') return close();
+    if (editingId || recurring || editing === 'inbox' || editing === 'imported') return close();
     // Ready for the next one: only amount and details are cleared.
     for (const name of ['amount', 'comment']) fields[name].value = '';
     tagPicker.reset();
@@ -279,7 +303,7 @@ export function mountEntryForm(element, store, actions) {
   watch(store, ['entryDraft', 'transactions', 'config', 'accounts', 'route'], (state) => {
     if (state.entryDraft && state.entryDraft.token !== lastToken) {
       lastToken = state.entryDraft.token;
-      open(state.entryDraft.entry, state.entryDraft.recurring, state.entryDraft.inbox);
+      open(state.entryDraft.entry, state.entryDraft.recurring, state.entryDraft.inbox, state.entryDraft.imported);
     } else if (!element.hidden) {
       syncOptions(state);
     }
