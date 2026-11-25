@@ -1,6 +1,6 @@
 // Firebase over REST, as the bot: no SDK, plain fetch, so it runs in the Cloudflare Worker and in Node.
 // The bot signs in as its own Firebase user; the Firestore rules let it create inbox items and read
-// the hints, nothing else (see TELEGRAM-BOT.md).
+// the hints and the sealed schedule, nothing else (see TELEGRAM-BOT.md).
 
 const IDENTITY = 'https://identitytoolkit.googleapis.com/v1';
 const FIRESTORE = 'https://firestore.googleapis.com/v1';
@@ -74,6 +74,18 @@ export function createFirestoreClient(config) {
       try {
         const body = await call(url, { headers: await authorized() }, 'Hints read');
         return JSON.parse(body.fields?.json?.stringValue ?? 'null');
+      } catch (error) {
+        if (error.status === 'NOT_FOUND') return null;
+        throw error;
+      }
+    },
+
+    // users/{owner}/bot/schedule as { v, iv, data }, still sealed; null until the app has written it.
+    async readSchedule() {
+      const url = `${FIRESTORE}/${documents}/users/${config.ownerUid}/bot/schedule?key=${encodeURIComponent(config.apiKey)}`;
+      try {
+        const { fields = {} } = await call(url, { headers: await authorized() }, 'Schedule read');
+        return { v: Number(fields.v?.integerValue), iv: fields.iv?.stringValue, data: fields.data?.stringValue };
       } catch (error) {
         if (error.status === 'NOT_FOUND') return null;
         throw error;

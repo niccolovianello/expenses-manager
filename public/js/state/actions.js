@@ -11,6 +11,7 @@ import { baselineCategory, selectAccountSummary, selectCategories, selectExtent,
 import { watch } from './store.js';
 import { debounce } from '../lib/memo.js';
 import { buildBotHints } from '../domain/bot-hints.js';
+import { buildBotSchedule } from '../domain/bot-schedule.js';
 import { loadAccountSeed, loadRecurringSeed } from '../data/local-seed.js';
 import { formatEUR } from '../lib/format.js';
 import { showToast } from '../components/toast.js';
@@ -91,6 +92,27 @@ export function createActions(store, api, { lock, markHistory = () => {} } = {})
       });
       const key = JSON.stringify(hints);
       if (key !== written) write(hints, key);
+    });
+    syncBotSchedule();
+  }
+
+  // The recurring transactions and top-ups, sealed for the bot so it can announce them on their day.
+  // Written again with a new key when the key is regenerated.
+  function syncBotSchedule() {
+    let written = null;
+    const write = debounce(async (schedule, key) => {
+      try {
+        await api.writeBotSchedule(schedule);
+        written = key;
+      } catch (error) {
+        showToast(`Telegram: ${error.message}`, { tone: 'error' });
+      }
+    }, 1500);
+    watch(store, ['recurrences', 'topUps', 'inboxSetup', 'status'], (state) => {
+      if ((state.status !== 'ready' && state.status !== 'empty') || !state.inboxSetup) return;
+      const schedule = buildBotSchedule({ recurrences: state.recurrences, topUps: state.topUps });
+      const key = JSON.stringify([state.inboxSetup.scheduleKey, schedule]);
+      if (key !== written) write(schedule, key);
     });
   }
 

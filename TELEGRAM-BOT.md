@@ -76,7 +76,7 @@ Test: `test/inbox.test.js` round-trips seal → open, rejects a doc-ID swap, and
   - Success: *"✓ 18,50 € · Ristoranti · Satispay · 15/11"*, with an **Annulla** button. The button writes a `{ type: 'cancel', ref }` inbox item. A message with several transactions gets one confirmation, and one button, each.
   - `needs_info`: Claude's question, starting with your message in «» (only that transaction's words when there are several), sent as a forced reply. The complete transactions of the same message are saved anyway. Your answer arrives as a reply to it, so the Worker reads both together without keeping any state.
 - **Commands:** `/aiuto` shows example messages. Cancelling is the **Annulla** button under each confirmation.
-- **Secrets:** `TELEGRAM_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `ALLOWED_CHAT_ID`, `ANTHROPIC_API_KEY`, `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `BOT_EMAIL`, `BOT_PASSWORD`, `OWNER_UID`, `INBOX_PUBLIC_KEY`.
+- **Secrets:** `TELEGRAM_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `ALLOWED_CHAT_ID`, `ANTHROPIC_API_KEY`, `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `BOT_EMAIL`, `BOT_PASSWORD`, `OWNER_UID`, `INBOX_PUBLIC_KEY`, and optionally `SCHEDULE_KEY` (see *Automatic movements*).
 
 ## 4. App changes
 
@@ -108,6 +108,22 @@ Test: `test/inbox.test.js` round-trips seal → open, rejects a doc-ID swap, and
 - **Auto-add valid items.** Valid inbox items are saved at unlock. Only invalid or ambiguous ones go to *Da rivedere*. The Telegram confirmation plus **Annulla** is the review step.
 - **Model: `claude-haiku-5-5`** at low effort.
 - **Privacy, accepted:** Telegram doesn't end-to-end encrypt messages to bots, so Telegram and Anthropic see the text of each message you send. Your stored data is unaffected.
+
+## Automatic movements (2026-11-25)
+
+Every morning at 08:00 (Europe/Rome) the bot sends one message with the day's automatic movements, e.g.
+
+```
+Oggi in automatico (2):
+🔁 12,99 € · Abbonamenti · Carta — Netflix
+🔄 Ricarica di Satispay fino a 50,00 € · da Conto
+```
+
+- Recurring transactions and top-ups are never stored, only their rules, encrypted. So the app also writes the rules for the bot to `users/{uid}/bot/schedule = { v, iv, data, updatedAt }`, sealed with AES-GCM under a **schedule key** (`public/js/vault/schedule-crypto.js`; the authenticated data is `bot-schedule`). It is rewritten, a moment after the last change, whenever the rules or the key change (`syncBotSchedule` in `state/actions.js`). The content is `public/js/domain/bot-schedule.js`: amounts, accounts, categories, comments and frequencies, no transactions or balances.
+- The schedule key is derived with HKDF from the inbox private key, so it needs no storage and **Rigenera chiave** replaces it too. Conti → Telegram shows it as *Chiave del calendario*; it goes into the Worker as `SCHEDULE_KEY`. Without it the bot simply sends nothing.
+- The Worker has two crons (06:00 and 07:00 UTC); only the one at 08:00 Rome time sends (`bot/src/notify.js`), so DST needs nothing.
+- A top-up's amount depends on the balance that morning, which only the app knows: the message says what it tops up to.
+- **Trade-off, accepted:** a compromised Worker could read the recurring and top-up rules. It still cannot read transactions, balances, rules or the inbox.
 
 ## Later
 

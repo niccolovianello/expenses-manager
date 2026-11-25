@@ -5,9 +5,9 @@ import { watch } from '../../state/store.js';
 import { askInline } from '../../components/confirm.js';
 import { showToast } from '../../components/toast.js';
 
-// Connection with the Telegram bot (see TELEGRAM-BOT.md). The bot needs two values: where the inbox is
-// (the user id) and the public key to seal messages with. Neither is secret; the private key never
-// leaves the encrypted vault.
+// Connection with the Telegram bot (see TELEGRAM-BOT.md). The bot needs three values: where the inbox is
+// (the user id), the public key to seal messages with, and the key it reads the schedule of automatic
+// movements with. Only the last one is secret; the private key never leaves the encrypted vault.
 export function mountTelegramPanel(element, store, actions) {
   render(element, html`
     <header class="panel-head">
@@ -37,11 +37,12 @@ export function mountTelegramPanel(element, store, actions) {
     const action = button.dataset.action;
     if (action === 'copy-uid' && setup) return copy(setup.ownerUid ?? '', 'ID utente');
     if (action === 'copy-key' && setup) return copy(JSON.stringify(setup.publicJwk), 'Chiave pubblica');
+    if (action === 'copy-schedule' && setup) return copy(setup.scheduleKey ?? '', 'Chiave del calendario');
     if (action !== 'set-up' && action !== 'regenerate') return;
     busy = true;
     const confirmed = action === 'set-up' || await askInline(button.parentElement, {
       message: 'Creare una nuova chiave?',
-      detail: 'Dovrai copiarla nel bot. I messaggi che il bot ha già cifrato con quella attuale e che non hai ancora aperto diventano illeggibili.',
+      detail: 'Dovrai copiare di nuovo le due chiavi nel bot. I messaggi che il bot ha già cifrato con quella attuale e che non hai ancora aperto diventano illeggibili.',
       confirmLabel: 'Crea nuova chiave',
       danger: true,
     });
@@ -57,7 +58,7 @@ export function mountTelegramPanel(element, store, actions) {
     if (state.status !== 'ready' || state.route !== 'accounts') return;
     const setup = state.inboxSetup;
     refs.sub.textContent = setup
-      ? 'Il bot cifra ogni messaggio con questa chiave pubblica: solo quest’app, sbloccata con il tuo codice, può leggerli. Copia i due valori nella configurazione del bot.'
+      ? 'Il bot cifra ogni messaggio con questa chiave pubblica: solo quest’app, sbloccata con il tuo codice, può leggerli. Copia i tre valori nella configurazione del bot.'
       : 'Scrivi le spese a un bot Telegram: arrivano qui la prossima volta che apri l’app. Per cominciare, crea la chiave con cui il bot cifrerà i messaggi.';
     render(refs.body, setup
       ? html`<div class="telegram-values">
@@ -74,6 +75,14 @@ export function mountTelegramPanel(element, store, actions) {
               <textarea class="input copy-value" readonly rows="3" aria-labelledby="tg-key-label">${JSON.stringify(setup.publicJwk)}</textarea>
               <button type="button" class="btn btn-secondary btn-sm" data-action="copy-key">${icon('copy', { size: 14 })}Copia</button>
             </div>
+          </div>
+          <div class="field field-full">
+            <span class="field-label" id="tg-schedule-label">Chiave del calendario <code>SCHEDULE_KEY</code></span>
+            <div class="copy-field">
+              <input class="input" type="password" readonly value="${setup.scheduleKey ?? ''}" aria-labelledby="tg-schedule-label">
+              <button type="button" class="btn btn-secondary btn-sm" data-action="copy-schedule">${icon('copy', { size: 14 })}Copia</button>
+            </div>
+            <span class="field-hint">Con questa il bot legge movimenti ricorrenti e ricariche per avvisarti il giorno in cui avvengono. Tienila segreta.</span>
           </div>
         </div>
         <div class="form-actions">

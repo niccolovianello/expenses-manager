@@ -10,5 +10,10 @@ MODEL = "claude-haiku-5-5"
 FIREBASE_PROJECT_ID = "money-manager-79b34"
 BOT_EMAIL = "bot@spese.niccolovianello.invalid"
 
+# The morning message with the day's automatic movements: 08:00 in Rome is 07:00 UTC in winter and
+# 06:00 in summer, so it runs at both and only the one at 08:00 Rome time sends (src/notify.js).
+[triggers]
+crons = ["0 6 * * *", "0 7 * * *"]
+
 [observability]
 enabled = true

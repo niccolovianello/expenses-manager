@@ -78,7 +78,8 @@ Expenses written to a Telegram bot reach the app through an encrypted inbox; how
 
 **Firestore → Rules**: paste the current contents of `firestore.rules` and **Publish**. Besides the existing rule, they let the bot:
 - create items in `users/{uid}/inbox`, only with the fields and sizes the app expects, and only for a user that already exists;
-- read `users/{uid}/bot/hints`.
+- read `users/{uid}/bot/hints`;
+- read `users/{uid}/bot/schedule` (recurring transactions and top-ups, sealed with the schedule key).
 
 The bot cannot read, change or delete anything else, inbox items included.
 
@@ -94,7 +95,7 @@ The browser key only accepts requests from the site, and a Worker sends none of 
 
 ### 4. The inbox key and your user id
 
-Open the app, unlock it, go to **Conti → Telegram → Collega Telegram**. Copy the two values shown.
+Open the app, unlock it, go to **Conti → Telegram → Collega Telegram**. Copy the three values shown. The third, *Chiave del calendario* (`SCHEDULE_KEY`), is optional: with it the bot sends a message every morning at 8 with the day's recurring transactions and top-ups. Unlike the other two it is secret. After **Rigenera chiave** both keys change and must be set again in the Worker.
 
 ### 5. Try it without Telegram
 
@@ -143,6 +144,7 @@ The bot runs as a Cloudflare Worker (the free plan is enough), from the `bot/` f
    npx wrangler secret put BOT_PASSWORD             # section 1
    npx wrangler secret put OWNER_UID                # Conti → Telegram
    npx wrangler secret put INBOX_PUBLIC_KEY         # Conti → Telegram, the whole {...}
+   npx wrangler secret put SCHEDULE_KEY             # Conti → Telegram, "Chiave del calendario"
    ```
    `MODEL`, `FIREBASE_PROJECT_ID` and `BOT_EMAIL` are not secret and are in `bot/wrangler.toml`.
 

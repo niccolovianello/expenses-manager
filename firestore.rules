@@ -38,5 +38,11 @@ service cloud.firestore {
     match /users/{uid}/bot/hints {
       allow read: if isBot();
     }
+
+    // Recurring transactions and top-ups, sealed by the app with a key the bot holds, so it can
+    // announce them on their day (public/js/vault/schedule-crypto.js): the bot can read it, nothing else.
+    match /users/{uid}/bot/schedule {
+      allow read: if isBot();
+    }
   }
 }

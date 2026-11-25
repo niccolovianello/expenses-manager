@@ -56,5 +56,9 @@ export function createVaultStorage({ db, uid, key }) {
     // users/{uid}/bot/hints: account and category names for the bot, in PLAIN TEXT (a deliberate
     // choice, see TELEGRAM-BOT.md). One JSON string, so the bot reads it without Firestore's typed values.
     writeBotHints: (hints) => setDoc(doc(db, 'users', uid, 'bot', 'hints'), { json: JSON.stringify(hints), updatedAt: serverTimestamp() }),
+
+    // users/{uid}/bot/schedule: recurring transactions and top-ups, sealed with the schedule key
+    // (schedule-crypto.js), so the bot can announce them on their day.
+    writeBotSchedule: ({ v, iv, data }) => setDoc(doc(db, 'users', uid, 'bot', 'schedule'), { v, iv, data, updatedAt: serverTimestamp() }),
   };
 }

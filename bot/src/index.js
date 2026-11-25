@@ -6,6 +6,8 @@ import { createFirestoreClient } from './firestore.js';
 import { createTelegram } from './telegram.js';
 import { parseTransactions } from './parse.js';
 import { handleUpdate } from './handler.js';
+import { importScheduleKey } from '../../public/js/vault/schedule-crypto.js';
+import { NOTIFY_HOUR, notifyDue, romeClock } from './notify.js';
 
 // Built once per isolate and reused: the Firebase token and the imported key survive between requests.
 let cached = null;
@@ -29,6 +31,8 @@ async function depsFor(env) {
       ownerUid: env.OWNER_UID,
     }),
     publicKey: await importInboxPublicKey(JSON.parse(env.INBOX_PUBLIC_KEY)),
+    // Optional: without it the bot just doesn't announce the automatic movements.
+    scheduleKey: env.SCHEDULE_KEY ? await importScheduleKey(env.SCHEDULE_KEY) : null,
     parse: (text, hints, now) => parseTransactions({ client, model, hints, text, now }),
     allowedChatId: env.ALLOWED_CHAT_ID || null,
     model,
@@ -74,5 +78,11 @@ export default {
     if (!update) return new Response('Bad request', { status: 400 });
     ctx.waitUntil(depsFor(env).then((deps) => handleUpdate(update, deps)).catch((error) => console.error(error)));
     return new Response('ok');
+  },
+
+  // The crons in wrangler.toml: the morning message with the day's automatic movements (notify.js).
+  async scheduled(event, env, ctx) {
+    if (romeClock(new Date(event.scheduledTime)).hour !== NOTIFY_HOUR) return;
+    ctx.waitUntil(depsFor(env).then(notifyDue).then((outcome) => console.log(`Automatic movements: ${outcome}`)).catch((error) => console.error(error)));
   },
 };

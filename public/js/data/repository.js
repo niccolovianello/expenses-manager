@@ -6,6 +6,7 @@ import { anchorExport, exportEffect, foldEntries, normalizeAccount, round2 } fro
 import { applyImportEdits, importEditPatch, sanitizeImportEdits } from '../domain/import-edits.js';
 import { emptyCategorization, mutations, sanitizeCategorization } from './categorization-store.js';
 import { generateInboxKeys, importInboxPrivateKey, openInboxItem } from '../vault/inbox-crypto.js';
+import { deriveScheduleKey, importScheduleKey, sealSchedule } from '../vault/schedule-crypto.js';
 
 const DATASET = 'dataset';
 const CATEGORIZATION = 'categorization';
@@ -101,8 +102,11 @@ export function createRepository(storage) {
     return mutateAccounts((next) => anchorExport(next, current.transactions));
   }
 
-  // Only the public half leaves the repository, with the user id the bot writes under.
-  const inboxSetupOf = (stored) => (stored ? { publicJwk: stored.publicJwk, ownerUid: storage.uid ?? null, createdAt: stored.createdAt } : null);
+  // Only the public half leaves the repository, with the user id the bot writes under and the key
+  // it reads the schedule of automatic movements with.
+  const inboxSetupOf = async (stored) => (stored
+    ? { publicJwk: stored.publicJwk, scheduleKey: await deriveScheduleKey(stored.privateJwk), ownerUid: storage.uid ?? null, createdAt: stored.createdAt }
+    : null);
 
   const manualEntry = (id, entry, extra = {}) => ({ id, origin: 'manual', createdAt: new Date().toISOString(), ...extra, ...entry });
 
@@ -329,6 +333,14 @@ export function createRepository(storage) {
 
     async writeBotHints(hints) {
       await storage.writeBotHints?.(hints);
+    },
+
+    // Sealed with the key derived from the current inbox key: nothing to do before Telegram is set up.
+    async writeBotSchedule(schedule) {
+      const stored = await loadInboxKey();
+      if (!stored || !storage.writeBotSchedule) return;
+      const key = await importScheduleKey(await deriveScheduleKey(stored.privateJwk));
+      await storage.writeBotSchedule(await sealSchedule(key, schedule));
     },
 
     async updateEntry(id, input) {
