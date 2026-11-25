@@ -2,7 +2,7 @@
 
 Status: steps 1–4 built (inbox crypto; app side; Firestore rules; the Worker in `bot/`). Setting it up is by hand, in DEPLOY.md (*Telegram bot*). Left: nothing required; see *Later* at the end.
 
-Goal: send a message like *"pizza 18,50 ieri satispay"* to a private Telegram bot. Claude turns it into a transaction, and the transaction shows up in **Movimenti** the next time the app is unlocked. Your existing data stays readable only by the browser.
+Goal: send a message like *"pizza 18,50 ieri satispay"* to a private Telegram bot. Claude turns it into a transaction (or several, for *"pizza 18 e cinema 10"*), and they show up in **Movimenti** the next time the app is unlocked. Your existing data stays readable only by the browser.
 
 ## Why an inbox
 
@@ -59,20 +59,22 @@ Test: `test/inbox.test.js` round-trips seal → open, rejects a doc-ID swap, and
   - Ignore messages from any chat except `ALLOWED_CHAT_ID`.
   - Answer `200` right away and do the work in `ctx.waitUntil`.
   - Reply to you with `sendMessage`.
-- **Idempotency:** the inbox doc ID is the Telegram `update_id`. When Telegram retries a webhook, creating the same doc again returns `ALREADY_EXISTS`, which the Worker treats as already done.
+- **Idempotency:** the inbox doc ID is the Telegram `update_id`; a message with several transactions uses `{update_id}-2`, `-3`… for the others. All of a message's transactions are saved before any reply. When Telegram retries a webhook, creating the first doc again returns `ALREADY_EXISTS`, which the Worker treats as already done.
 - **`firestore.js`:** sign in with `accounts:signInWithPassword` (Identity Toolkit REST) and cache the ID token for about 55 minutes. Then create the doc with `POST …/documents/users/{owner}/inbox?documentId={update_id}` and read `bot/hints`.
 - **`parse.js`: Claude call** with `@anthropic-ai/sdk` (it runs in Workers).
   - Model `claude-haiku-5-5` with `output_config.effort: "low"` (its default is `medium`). Messages are tiny, so cost per expense is negligible. The model ID is a Worker variable, so switching to `claude-opus-5-5` later is a one-line change.
-  - Structured output via `output_config.format` with a JSON schema built from the hints:
+  - Structured output via `output_config.format` with a JSON schema built from the hints: a list `transactions` (at most 10 are kept; the bot says when it cut some), each with
     - `account` and `toAccount` are enums of your account names;
     - `category` is an enum of your categories;
-    - `status` is `ok` or `needs_info`, with a `question` when information is missing.
+    - `status` is `ok` or `needs_info`, with a `question` when information is missing;
+    - `source` is the words of the message that transaction came from. It is stored as the item's `text` when a message has several, so confirmations, questions and *Da rivedere* quote only that piece.
+  - The prompt says how to split: one item per transaction in the order written, one purchase with details stays one, and details said once (a date, an account) apply to all they cover.
   - The system prompt gives today's date (Europe/Rome), says that "ieri", "venerdì" and so on are relative to it, says that Italian amounts use a decimal comma, and names the default account to use when none is mentioned.
   - `stop_reason` is checked before the output is read. Haiku has no server-side refusal fallback, so on `refusal` or `max_tokens` the bot replies "Non ho capito, riscrivilo" and writes nothing.
   - Validation reuses `normalizeEntry` from `public/js/domain/entries.js`, so the bot and the app enforce the same rules.
 - **Replies:**
-  - Success: *"✓ 18,50 € · Ristoranti · Satispay · 15/11"*, with an **Annulla** button. The button writes a `{ type: 'cancel', ref }` inbox item.
-  - `needs_info`: Claude's question, starting with your message in «», sent as a forced reply. Your answer arrives as a reply to it, so the Worker reads both together without keeping any state.
+  - Success: *"✓ 18,50 € · Ristoranti · Satispay · 15/11"*, with an **Annulla** button. The button writes a `{ type: 'cancel', ref }` inbox item. A message with several transactions gets one confirmation, and one button, each.
+  - `needs_info`: Claude's question, starting with your message in «» (only that transaction's words when there are several), sent as a forced reply. The complete transactions of the same message are saved anyway. Your answer arrives as a reply to it, so the Worker reads both together without keeping any state.
 - **Commands:** `/aiuto` shows example messages. Cancelling is the **Annulla** button under each confirmation.
 - **Secrets:** `TELEGRAM_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `ALLOWED_CHAT_ID`, `ANTHROPIC_API_KEY`, `FIREBASE_API_KEY`, `FIREBASE_PROJECT_ID`, `BOT_EMAIL`, `BOT_PASSWORD`, `OWNER_UID`, `INBOX_PUBLIC_KEY`.
 

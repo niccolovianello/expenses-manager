@@ -11,6 +11,13 @@ const CHAT = 4242;
 // Intl puts a non-breaking space before €.
 const plain = (text) => text.replace(/\u00a0/g, ' ');
 
+// What deps.parse returns: one transaction unless `parsed` is a list (of fields, or of { source, parsed }).
+const result = (parsed) => {
+  if (parsed === null) return null;
+  const list = Array.isArray(parsed) ? parsed : [parsed];
+  return { transactions: list.map((item) => (item.parsed ? item : { source: null, parsed: item })), truncated: false };
+};
+
 async function setup({ parsed = ok(), storedHints = hints, allowedChatId = CHAT } = {}) {
   const { publicJwk, privateJwk } = await generateInboxKeys();
   const sent = [];
@@ -34,7 +41,7 @@ async function setup({ parsed = ok(), storedHints = hints, allowedChatId = CHAT 
     },
     parse: async (text) => {
       parses.push(text);
-      return typeof parsed === 'function' ? parsed(text) : parsed;
+      return result(typeof parsed === 'function' ? parsed(text) : parsed);
     },
     publicKey: await importInboxPublicKey(publicJwk),
     allowedChatId,
@@ -66,6 +73,45 @@ test('the same update delivered twice is saved and answered once', async () => {
   await handleUpdate(message('pizza 18,50'), t.deps);
   assert.equal(t.inbox.size, 1);
   assert.equal(t.sent.length, 1);
+});
+
+test('several transactions in one message are saved and confirmed one by one', async () => {
+  const t = await setup({ parsed: [
+    { source: 'pizza 18', parsed: ok({ amount: 18 }) },
+    { source: 'benzina', parsed: { ...ok({ amount: null, comment: 'Benzina' }), status: 'needs_info', question: 'Quanto hai speso di benzina?' } },
+    { source: 'cinema 10', parsed: ok({ amount: 10, comment: 'Cinema' }) },
+  ] });
+  await handleUpdate(message('ieri pizza 18, benzina e cinema 10'), t.deps);
+  assert.deepEqual([...t.inbox.keys()], ['1001', '1001-2']);
+  assert.equal((await t.open('1001')).text, 'pizza 18');
+  assert.equal((await t.open('1001-2')).parsed.amount, 10);
+  assert.deepEqual(t.sent.map((reply) => plain(reply.text)), [
+    '✓ 18,00 € · Ristoranti · Satispay · ieri\nPizza',
+    '✓ 10,00 € · Ristoranti · Satispay · ieri\nCinema',
+    '«benzina»\nQuanto hai speso di benzina?',
+  ]);
+  assert.equal(t.sent[1].extra.reply_markup.inline_keyboard[0][0].callback_data, 'x:1001-2');
+  assert.equal(t.sent[2].extra.reply_markup.force_reply, true);
+
+  // Delivered again: nothing saved twice, nothing said twice.
+  await handleUpdate(message('ieri pizza 18, benzina e cinema 10'), t.deps);
+  assert.equal(t.inbox.size, 2);
+  assert.equal(t.sent.length, 3);
+});
+
+test('a failure halfway says how many were saved', async () => {
+  const t = await setup({ parsed: [ok({ amount: 18 }), ok({ amount: 10 })] });
+  const create = t.deps.firestore.createInboxItem;
+  t.deps.firestore.createInboxItem = async (id, item) => {
+    if (id !== '1001') throw new Error('UNAVAILABLE');
+    return create(id, item);
+  };
+  const original = console.error;
+  console.error = () => {};
+  await handleUpdate(message('pizza 18 e cinema 10'), t.deps);
+  console.error = original;
+  assert.equal(t.inbox.size, 1);
+  assert.match(t.sent[0].text, /^Ne ho salvati 1, poi qualcosa è andato storto/);
 });
 
 test('other chats are ignored, and before setup the bot only tells the chat id', async () => {

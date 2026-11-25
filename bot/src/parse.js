@@ -1,19 +1,23 @@
-// Turns a message like "pizza 18,50 ieri satispay" into the fields of a transaction, with Claude.
+// Turns a message like "pizza 18,50 ieri satispay" into the fields of its transactions, with Claude:
+// one message can hold several ("pizza 18 e benzina 60").
 // The Anthropic client is passed in, so this module has no dependencies and runs in the tests too.
 // The schema lists your real account and category names (the hints the app writes), so the answer
 // can only name those.
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_TEXT = 500;
+// More than this in one message is cut, and the bot says so.
+export const MAX_TRANSACTIONS = 10;
 
 const nullable = (schema) => ({ anyOf: [schema, { type: 'null' }] });
 const oneOf = (values) => (values.length ? { type: 'string', enum: values } : { type: 'string' });
 
 export function expenseSchema(hints) {
   const categories = [...new Set([...hints.categories.expense, ...hints.categories.income])];
-  return {
+  const transaction = {
     type: 'object',
     properties: {
+      source: { type: 'string', description: 'The words of the message this transaction comes from' },
       status: { type: 'string', enum: ['ok', 'needs_info'] },
       kind: { type: 'string', enum: ['expense', 'income', 'transfer'] },
       amount: nullable({ type: 'number' }),
@@ -25,7 +29,13 @@ export function expenseSchema(hints) {
       comment: nullable({ type: 'string' }),
       question: nullable({ type: 'string' }),
     },
-    required: ['status', 'kind', 'amount', 'date', 'account', 'toAccount', 'category', 'tag', 'comment', 'question'],
+    required: ['source', 'status', 'kind', 'amount', 'date', 'account', 'toAccount', 'category', 'tag', 'comment', 'question'],
+    additionalProperties: false,
+  };
+  return {
+    type: 'object',
+    properties: { transactions: { type: 'array', items: transaction } },
+    required: ['transactions'],
     additionalProperties: false,
   };
 }
@@ -33,7 +43,7 @@ export function expenseSchema(hints) {
 const list = (values) => (values.length ? values.map((value) => `- ${value}`).join('\n') : '(none)');
 
 export function systemPrompt(hints, { today, weekday }) {
-  return `You read short messages, usually in Italian, in which one person records a transaction for their personal expense tracker, and you return its fields.
+  return `You read short messages, usually in Italian, in which one person records one or more transactions for their personal expense tracker, and you return the fields of each.
 
 Today is ${weekday} ${today} (Europe/Rome).
 
@@ -50,7 +60,14 @@ ${list(hints.categories.income)}
 Tags already in use:
 ${list(hints.tags ?? [])}
 
-How to read a message:
+How to split a message:
+- One item in transactions for each transaction the message records, in the order it names them: "pizza 18 e benzina 60", one per line, or a list separated by commas are several. At most ${MAX_TRANSACTIONS}.
+- One purchase stays one transaction even when the message gives details of it ("cena 40 di cui 10 di mancia", "spesa 35 tra pane e latte").
+- Details said once apply to every transaction they plausibly cover: in "ieri pizza 18 e cinema 10 con la carta" both are yesterday and on the card.
+- source: the words of the message that this transaction comes from, copied as written, without the details it shares with others.
+- A message that is not a transaction at all is one item with status "needs_info".
+
+How to read each transaction:
 - kind: "expense" for money spent (the usual case); "income" for money received (stipendio, rimborso, "mi hanno dato", "ricevuto"); "transfer" for money moved between two of the accounts above (giroconto, "sposto", "ricarico Satispay dal conto"). For a transfer, account is where the money leaves and toAccount where it arrives.
 - amount: a positive number in euros. Italian writing: "18,50" is 18.5, "1.200" is 1200, "12 euro" and "12€" are 12.
 - date: YYYY-MM-DD. Without a date it is today. "ieri" is yesterday, "l'altro ieri" two days ago, a weekday name ("venerdì") is the most recent one before today. Never a future date unless the message says so.
@@ -69,7 +86,7 @@ export function romeToday(now = new Date()) {
   return { today, weekday };
 }
 
-// The answer, with anything not in the hints dropped rather than trusted.
+// One transaction of the answer, with anything not in the hints dropped rather than trusted.
 export function normalizeParsed(raw, hints, today) {
   const accounts = new Set(hints.accounts);
   const categories = new Set([...hints.categories.expense, ...hints.categories.income]);
@@ -97,8 +114,10 @@ export function normalizeParsed(raw, hints, today) {
   return parsed;
 }
 
-// null when Claude declined, was cut off, or did not return the schema: the bot then asks to rewrite.
-export async function parseExpense({ client, model, hints, text, now = new Date() }) {
+// The transactions in the message, each as { source, parsed }, and whether there were more than
+// MAX_TRANSACTIONS. null when Claude declined, was cut off, or did not return the schema: the bot
+// then asks to rewrite.
+export async function parseTransactions({ client, model, hints, text, now = new Date() }) {
   const day = romeToday(now);
   const response = await client.messages.create({
     model,
@@ -111,7 +130,15 @@ export async function parseExpense({ client, model, hints, text, now = new Date(
   const block = response.content.find((item) => item.type === 'text');
   if (!block) return null;
   try {
-    return normalizeParsed(JSON.parse(block.text), hints, day.today);
+    const { transactions } = JSON.parse(block.text);
+    if (!Array.isArray(transactions)) return null;
+    return {
+      transactions: transactions.slice(0, MAX_TRANSACTIONS).map((raw) => ({
+        source: typeof raw.source === 'string' && raw.source.trim() ? raw.source.trim().slice(0, MAX_TEXT) : null,
+        parsed: normalizeParsed(raw, hints, day.today),
+      })),
+      truncated: transactions.length > MAX_TRANSACTIONS,
+    };
   } catch {
     return null;
   }

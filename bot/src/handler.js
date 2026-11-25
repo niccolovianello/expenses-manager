@@ -14,6 +14,7 @@ const HELP = `Scrivimi una spesa come la diresti, per esempio:
 • stipendio 1800 sul conto
 • giroconto 50 dal conto a Satispay
 
+Puoi metterne più di una nello stesso messaggio: “pizza 18 e cinema 10”.
 Se non dici il conto uso quello che usi di più. La trovi in Spese la prossima volta che apri l’app.`;
 
 function describeDate(date, today) {
@@ -51,6 +52,7 @@ export async function handleUpdate(update, deps) {
   if (!deps.allowedChatId) return reply(`Bot non ancora configurato. Il tuo chat id è ${chatId}: impostalo come ALLOWED_CHAT_ID.`);
   if (String(chatId) !== String(deps.allowedChatId)) return;
 
+  const saved = [];
   try {
     const typed = message.text?.trim();
     if (!typed) return reply('Mandami un messaggio di testo, per esempio “pizza 18,50”.');
@@ -65,29 +67,49 @@ export async function handleUpdate(update, deps) {
 
     const now = deps.now();
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(now);
-    const parsed = await deps.parse(text, hints, now);
-    if (!parsed) return reply('Non ho capito, puoi riscriverlo?');
-    if (parsed.status === 'needs_info') {
-      return reply(`«${text}»\n${parsed.question}`, { reply_markup: { force_reply: true, input_field_placeholder: 'Rispondi qui' } });
+    const result = await deps.parse(text, hints, now);
+    if (!result?.transactions.length) return reply('Non ho capito, puoi riscriverlo?');
+    // Each transaction keeps the words it came from, to quote back; a lone one keeps the whole message.
+    const several = result.transactions.length > 1;
+    const items = result.transactions.map(({ source, parsed }) => ({ parsed, text: several && source ? source : text }));
+
+    // The complete ones are saved first, all of them, then answered. The first takes the update id
+    // as its doc id, the others `{update_id}-2`, `-3`…: if the first is already there, Telegram
+    // delivered the same update twice and the first delivery has been answered.
+    for (const item of items.filter(({ parsed }) => parsed.status === 'ok')) {
+      const docId = saved.length ? `${update.update_id}-${saved.length + 1}` : String(update.update_id);
+      const sealed = await sealInboxItem(deps.publicKey, docId, {
+        v: 1,
+        receivedAt: new Date((message.date ?? now.getTime() / 1000) * 1000).toISOString(),
+        text: item.text,
+        parsed: item.parsed,
+        model: deps.model,
+      });
+      const created = await deps.firestore.createInboxItem(docId, sealed);
+      if (!created && !saved.length) return;
+      saved.push({ ...item, docId, created });
     }
 
-    const docId = String(update.update_id);
-    const sealed = await sealInboxItem(deps.publicKey, docId, {
-      v: 1,
-      receivedAt: new Date((message.date ?? now.getTime() / 1000) * 1000).toISOString(),
-      text,
-      parsed,
-      model: deps.model,
-    });
-    // Already there: Telegram delivered the same update twice, and the first one has been answered.
-    if (!(await deps.firestore.createInboxItem(docId, sealed))) return;
-
-    const problem = problemWith(parsed, hints);
-    const body = problem ? `Salvato, ma da completare nell’app: ${problem.charAt(0).toLowerCase()}${problem.slice(1)}.\n«${text}»` : confirmation(parsed, today);
-    return reply(body, { reply_markup: { inline_keyboard: [[{ text: 'Annulla', callback_data: `${CANCEL}${docId}` }]] } });
+    // Sent one at a time, so they arrive in the order of the message.
+    for (const { parsed, text: said, docId, created } of saved) {
+      if (!created) continue;
+      const problem = problemWith(parsed, hints);
+      const body = problem ? `Salvato, ma da completare nell’app: ${problem.charAt(0).toLowerCase()}${problem.slice(1)}.\n«${said}»` : confirmation(parsed, today);
+      await reply(body, { reply_markup: { inline_keyboard: [[{ text: 'Annulla', callback_data: `${CANCEL}${docId}` }]] } });
+    }
+    // An incomplete one is asked on its own, quoting only its words: the answer completes just that one.
+    for (const { parsed, text: said } of items.filter(({ parsed }) => parsed.status === 'needs_info')) {
+      await reply(`«${said}»\n${parsed.question}`, { reply_markup: { force_reply: true, input_field_placeholder: 'Rispondi qui' } });
+    }
+    if (result.truncated) await reply(`Ne ho letti solo ${result.transactions.length}: mandami gli altri in un altro messaggio.`);
   } catch (error) {
     console.error(error);
-    return reply('Qualcosa è andato storto e non l’ho salvato. Riprova tra poco.').catch(() => {});
+    // Some of a message's transactions may already be saved: say so, rather than invite a duplicate.
+    const done = saved.filter(({ created }) => created).length;
+    const text = done
+      ? `Ne ho salvati ${done}, poi qualcosa è andato storto: controlla in Spese quali mancano e mandameli di nuovo.`
+      : 'Qualcosa è andato storto e non l’ho salvato. Riprova tra poco.';
+    return reply(text).catch(() => {});
   }
 }
 

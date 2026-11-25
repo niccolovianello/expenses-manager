@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { importInboxPublicKey } from '../../public/js/vault/inbox-crypto.js';
 import { createFirestoreClient } from './firestore.js';
 import { createTelegram } from './telegram.js';
-import { parseExpense } from './parse.js';
+import { parseTransactions } from './parse.js';
 import { handleUpdate } from './handler.js';
 
 // Built once per isolate and reused: the Firebase token and the imported key survive between requests.
@@ -29,7 +29,7 @@ async function depsFor(env) {
       ownerUid: env.OWNER_UID,
     }),
     publicKey: await importInboxPublicKey(JSON.parse(env.INBOX_PUBLIC_KEY)),
-    parse: (text, hints, now) => parseExpense({ client, model, hints, text, now }),
+    parse: (text, hints, now) => parseTransactions({ client, model, hints, text, now }),
     allowedChatId: env.ALLOWED_CHAT_ID || null,
     model,
     now: () => new Date(),
